@@ -52,7 +52,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;color:var(--t1)}
 
 /* ── PIECE TRAY ── */
 #tray{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-around;align-items:flex-end;padding:8px max(12px,var(--sal)) max(16px,calc(var(--sab)+8px));gap:8px;background:rgba(8,8,14,.9);border-top:1px solid var(--b1);backdrop-filter:blur(16px);touch-action:none}
-.piece-slot{flex:1;max-width:100px;min-height:80px;display:flex;align-items:center;justify-content:center;border-radius:var(--r12);border:1px solid var(--b2);background:var(--bg3);position:relative;transition:border-color .15s,background .15s;touch-action:none}
+.piece-slot{flex:1;max-width:110px;min-height:90px;display:flex;align-items:center;justify-content:center;border-radius:var(--r12);border:1px solid var(--b2);background:var(--bg3);position:relative;transition:border-color .15s,background .15s;touch-action:none}
 .piece-slot.selected{border-color:var(--amber);background:rgba(255,140,0,.08);box-shadow:0 0 14px rgba(255,140,0,.2)}
 .piece-slot.dragging{opacity:.35;transform:scale(.92)}
 .piece-slot canvas{display:block;pointer-events:none}
@@ -503,7 +503,7 @@ const PIECES=[
 ];
 
 // ── GRID ────────────────────────────────────────
-const COLS=8,ROWS=8;
+const COLS=10,ROWS=10;
 let grid=[]; // grid[row][col] = null | {color}
 let pieces=[null,null,null]; // 3 tray pieces, each {cells, color, name}
 
@@ -659,29 +659,19 @@ function checkLines(){
   fullRows.forEach(r=>{for(let c=0;c<COLS;c++) toClear.add(r+','+c);});
   fullCols.forEach(c=>{for(let r=0;r<ROWS;r++) toClear.add(r+','+c);});
 
-  // Bonus: adjacent filled cells outside cleared lines (chain bonus)
-  const bonus=new Set();
-  for(const key of toClear){
-    const[r,c]=key.split(',').map(Number);
-    [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>{
-      const nr=r+dr,nc=c+dc,nk=nr+','+nc;
-      if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]&&!toClear.has(nk)) bonus.add(nk);
-    });
-  }
-
   // Particles
   for(const key of toClear){
     const[r,c]=key.split(',').map(Number);
     if(grid[r][c]) spawnBurst(GOFF_X+c*CELL+CELL/2,GOFF_Y+r*CELL+CELL/2,grid[r][c].color,true);
   }
 
-  // Clear immediately
+  // Clear cells
   for(const key of toClear){const[r,c]=key.split(',').map(Number);grid[r][c]=null;}
 
-  // Score
+  // Score: per cell cleared × combo (Block Blast style)
   const numLines=fullRows.length+fullCols.length;
   combo++;if(combo>bestCombo)bestCombo=combo;comboT=Date.now();
-  const pts=Math.round((numLines*100+bonus.size*15)*Math.max(1,combo));
+  const pts=Math.round(toClear.size*10*Math.max(1,combo));
   score+=pts;linesCleared+=numLines;
 
   floats.push({x:W/2,y:GOFF_Y+CELL*ROWS/2,text:'+'+pts.toLocaleString()+(combo>1?' '+combo+'×':''),life:1,vy:-1.8,big:combo>1});
@@ -830,11 +820,11 @@ function renderPieceTray(){
     const p=pieces[i];
     if(!p){slot.className='piece-slot empty-slot';pc.width=60;pc.height=60;pc.getContext('2d').clearRect(0,0,60,60);continue;}
     slot.className='piece-slot'+(tapSelected===i||dragPieceIdx===i?' selected':'')+(dragPieceIdx===i?' dragging':'');
-    // Calculate piece bounding box
     const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
     const maxR=Math.max(...rows),maxC=Math.max(...cols);
-    const sz=Math.floor(Math.min(50/(maxR+1),50/(maxC+1),18));
-    const pcW=(maxC+1)*sz+8,pcH=(maxR+1)*sz+8;
+    // Bigger cells in tray - Block Blast style chunky pieces
+    const sz=Math.floor(Math.min(64/(maxR+1),64/(maxC+1),22));
+    const pcW=(maxC+1)*sz+10,pcH=(maxR+1)*sz+10;
     pc.width=pcW;pc.height=pcH;
     pc.style.width=pcW+'px';pc.style.height=pcH+'px';
     const pctx=pc.getContext('2d');pctx.clearRect(0,0,pcW,pcH);
@@ -878,8 +868,8 @@ function updateGhostFromScreen(pieceIdx,sx,sy){
   // Effective piece centre on screen
   const pieceScreenY=sy+offY+maxR/2*CELL;
   const pieceScreenX=sx;
-  // Only show ghost if effective piece position overlaps or is near the grid
-  const margin=CELL*1.5;
+  // Only show ghost when the floating piece visually overlaps the grid
+  const margin=CELL*0.2;
   const nearGrid=pieceScreenX>=rect.left-margin&&pieceScreenX<=rect.right+margin&&
                  pieceScreenY>=rect.top-margin&&pieceScreenY<=rect.bottom+margin;
   if(!nearGrid){ghostPos=null;return;}

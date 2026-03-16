@@ -244,7 +244,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;color:var(--t1)}
   <div id="hud-row1">
     <span id="logo">SURGE</span>
     <div class="stat"><span class="stat-v" id="score-v">0</span><span class="stat-l">Score</span></div>
-    <div class="stat"><span class="stat-v" id="sparks-v">0</span><span class="stat-l">⚡</span></div>
     <div class="stat"><span class="stat-v" id="streak-v">1🔥</span><span class="stat-l">Streak</span></div>
   </div>
   <div id="hud-xp">
@@ -255,7 +254,6 @@ body{font-family:'DM Sans',system-ui,sans-serif;color:var(--t1)}
   <div id="hud-row2">
     <span id="combo-hud"></span>
     <button class="tr-btn" onclick="openHub('missions')">⊞ Hub</button>
-    <button class="tr-btn" id="gear-btn" onclick="openGearPanel()">◈ Gear</button>
     <button class="tr-btn" id="mute-btn" onclick="toggleMute()">🔊</button>
   </div>
 </div>
@@ -272,14 +270,11 @@ body{font-family:'DM Sans',system-ui,sans-serif;color:var(--t1)}
   <div class="piece-slot" id="slot-2"><canvas id="pc-2"></canvas></div>
 </div>
 
-<!-- Surge bar -->
-<div id="surge-wrap">
-  <div id="surge-label">⚡ SURGE MOMENT!</div>
-  <div id="surge-bar-outer">
-    <div id="surge-zone"></div>
-    <div id="surge-bar-inner"></div>
-  </div>
-  <button id="surge-tap-btn" onclick="onSurgeTap()">TAP NOW!</button>
+<!-- Surge wrap hidden for now -->
+<div id="surge-wrap" style="display:none!important">
+  <div id="surge-label"></div>
+  <div id="surge-bar-outer"><div id="surge-zone"></div><div id="surge-bar-inner"></div></div>
+  <button id="surge-tap-btn" onclick="onSurgeTap()"></button>
 </div>
 
 <!-- Result overlay -->
@@ -322,32 +317,20 @@ body{font-family:'DM Sans',system-ui,sans-serif;color:var(--t1)}
   </div>
 </div>
 
-<!-- Gear Panel -->
-<div id="theme-panel">
-  <div style="display:flex;gap:6px;margin-bottom:14px">
-    <button class="gpill active" id="gpill-theme" onclick="setGearTab('theme')">◈ Themes</button>
-    <button class="gpill" id="gpill-loadout" onclick="setGearTab('loadout')">🎨 Loadout</button>
-  </div>
-  <div id="gear-body"></div>
-</div>
+<!-- Gear panel / loot overlay hidden for now - code preserved -->
+<div id="theme-panel" style="display:none!important"><div style="display:flex;gap:6px;margin-bottom:14px"><button class="gpill active" id="gpill-theme" onclick="setGearTab('theme')">◈ Themes</button><button class="gpill" id="gpill-loadout" onclick="setGearTab('loadout')">🎨 Loadout</button></div><div id="gear-body"></div></div>
 
 <!-- Hub -->
 <div id="hub" onclick="handleHubBg(event)">
   <div id="hub-card">
     <div id="hub-topbar">
       <div id="hub-drag" onclick="closeHub()"></div>
-      <div style="display:flex;gap:6px;align-items:center;margin-right:8px">
-        <div class="hub-bal bal-sp"><span>⚡</span><span id="hub-sparks">0</span></div>
-        <div class="hub-bal bal-cr" style="color:var(--teal);background:rgba(0,212,180,.08);border:1px solid rgba(0,212,180,.18)"><span>💎</span><span id="hub-crystals">0</span></div>
-      </div>
       <div id="hub-title">Hub</div>
       <button id="hub-x" onclick="closeHub()">✕</button>
     </div>
     <div id="hub-tabs">
       <div class="htab on" id="tab-missions" onclick="setHubTab('missions')"><span class="hi">📋</span><span class="hl">Missions</span></div>
       <div class="htab" id="tab-achievements" onclick="setHubTab('achievements')"><span class="hi">🏆</span><span class="hl">Awards</span></div>
-      <div class="htab" id="tab-shop" onclick="setHubTab('shop')"><span class="hi">⚡</span><span class="hl">Sparks</span></div>
-      <div class="htab" id="tab-gemshop" onclick="setHubTab('gemshop')"><span class="hi">💎</span><span class="hl">Gems</span></div>
       <div class="htab" id="tab-streak" onclick="setHubTab('streak')"><span class="hi">🔥</span><span class="hl">Streak</span></div>
     </div>
     <div id="hub-body"></div>
@@ -495,18 +478,11 @@ const PIECES=[
 const COLS=8,ROWS=8;
 let grid=[]; // grid[row][col] = null | {color}
 let pieces=[null,null,null]; // 3 tray pieces, each {cells, color, name}
-let selectedPiece=-1;
-let ghostPos=null; // {row,col} where ghost lands
 
 // Scoring state
 let score=0,linesCleared=0,surgesHit=0,perfectSurges=0,bestCombo=0;
-let combo=0,comboT=0;
+let combo=0,comboT=0,consecutivePerfectSurges=0;
 let gamesPlayed=0,roundsToday=0;
-
-// Surge state
-let surgeActive=false,surgePhase=0,surgeLines=[],surgeT=0,surgeInterval=null;
-let surgePerfect=false; // tapped in sweet zone
-let consecutivePerfectSurges=0;
 
 // Drag state
 
@@ -552,20 +528,65 @@ function initGrid(){
 }
 
 // ── PIECE GENERATION ────────────────────────────
-function randomPiece(){
-  const total=PIECES.reduce((s,p)=>s+p.weight,0);
+function randomPiece(sizeHint){
+  // sizeHint: 'small'|'medium'|'large'|null = any
+  const filtered=sizeHint?PIECES.filter(p=>{
+    const sz=p.cells.length;
+    if(sizeHint==='small') return sz<=2;
+    if(sizeHint==='medium') return sz===3||sz===4;
+    if(sizeHint==='large') return sz>=4;
+    return true;
+  }):PIECES;
+  const pool=filtered.length?filtered:PIECES;
+  const total=pool.reduce((s,p)=>s+p.weight,0);
   let r=Math.random()*total;
-  for(const p of PIECES){r-=p.weight;if(r<=0)return p;}
-  return PIECES[0];
+  for(const p of pool){r-=p.weight;if(r<=0)return p;}
+  return pool[0];
 }
-function newPieceObj(){
-  const def=randomPiece();
+
+function pieceCanFit(pieceDef){
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(canPlace(pieceDef,r,c)) return true;
+  return false;
+}
+
+function newPieceObj(sizeHint){
+  const def=randomPiece(sizeHint);
   const theme=activeTheme();
   const color=theme.blockColors[Math.floor(Math.random()*theme.blockColors.length)];
   return{cells:def.cells,color,name:def.name};
 }
+
 function refillPieces(){
-  for(let i=0;i<3;i++) if(!pieces[i]) pieces[i]=newPieceObj();
+  // Count filled cells to gauge board pressure
+  let filled=0;
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(grid[r][c]) filled++;
+  const fillPct=filled/(ROWS*COLS);
+
+  // Mix sizes: as board fills, lean smaller so player has options
+  // Low fill: 1 small, 1 medium, 1 any
+  // Mid fill: 2 small, 1 medium
+  // High fill: 2 small, 1 small
+  let hints;
+  if(fillPct<0.35)      hints=[null,'medium','small'];
+  else if(fillPct<0.6)  hints=['small','medium','small'];
+  else                  hints=['small','small','small'];
+
+  // Shuffle hints so tray order isn't predictable
+  hints.sort(()=>Math.random()-0.5);
+
+  const newPieces=hints.map(h=>newPieceObj(h));
+
+  // Guarantee: at least one piece must be placeable on the current board.
+  // If none fit, replace the last one with a 1×1 (always fits if any cell is open)
+  const anyFits=newPieces.some(p=>pieceCanFit(p));
+  if(!anyFits){
+    const fallbackDef=PIECES.find(p=>p.name==='1x1')||PIECES[0];
+    const theme=activeTheme();
+    const color=theme.blockColors[Math.floor(Math.random()*theme.blockColors.length)];
+    newPieces[2]={cells:fallbackDef.cells,color,name:fallbackDef.name};
+  }
+
+  for(let i=0;i<3;i++) if(!pieces[i]) pieces[i]=newPieces[i];
 }
 function allPiecesUsed(){return pieces.every(p=>p===null);}
 
@@ -593,150 +614,62 @@ function placePiece(piece,row,col){
   checkLines();
 }
 
-// ── LINE CLEAR ──────────────────────────────────
+// ── LINE CLEAR — instant, no surge ─────────────
 function checkLines(){
   const fullRows=[],fullCols=[];
   for(let r=0;r<ROWS;r++) if(grid[r].every(c=>c!==null)) fullRows.push(r);
   for(let c=0;c<COLS;c++) if(grid.every(row=>row[c]!==null)) fullCols.push(c);
-  const lines=[...new Set([...fullRows.map(r=>({type:'row',idx:r})),...fullCols.map(c=>({type:'col',idx:c}))])];
-  if(!lines.length){
-    combo=0;
-    afterPlace();
-    return;
-  }
-  // Trigger surge
-  triggerSurge(lines);
-}
 
-function triggerSurge(lines){
-  surgeLines=lines;
-  surgeActive=true;
-  surgePerfect=false;
-  surgePhase=0;
-  surgeT=Date.now();
-  const surgeDur=2000;
-  // Sweet zone: 0.6–0.85 of the bar
-  const zoneStart=0.60,zoneEnd=0.85;
-  const barOuter=$('surge-bar-outer');
-  $('surge-zone').style.left=(zoneStart*100)+'%';
-  $('surge-zone').style.width=((zoneEnd-zoneStart)*100)+'%';
-  $('surge-wrap').classList.add('show');
-  $('surge-bar-inner').style.width='0%';
-  $('surge-bar-inner').style.background='linear-gradient(90deg,#4488FF,var(--amber))';
-  clearInterval(surgeInterval);
-  surgeInterval=setInterval(()=>{
-    if(!surgeActive){clearInterval(surgeInterval);return;}
-    const elapsed=Date.now()-surgeT;
-    const pct=Math.min(1,elapsed/surgeDur);
-    $('surge-bar-inner').style.width=(pct*100)+'%';
-    // Color the bar as it enters the zone
-    if(pct>=zoneStart&&pct<=zoneEnd) $('surge-bar-inner').style.background='linear-gradient(90deg,#4488FF,var(--amber),#FFD700)';
-    if(pct>=1){
-      clearInterval(surgeInterval);
-      completeSurge(false);
-    }
-  },30);
-}
+  if(!fullRows.length&&!fullCols.length){ combo=0; afterPlace(); return; }
 
-function onSurgeTap(){
-  if(!surgeActive)return;
-  clearInterval(surgeInterval);
-  const elapsed=Date.now()-surgeT;
-  const surgeDur=2000;
-  const pct=elapsed/surgeDur;
-  const inZone=pct>=0.60&&pct<=0.85;
-  completeSurge(inZone);
-  haptic(inZone?[15,10,15]:8);
-  if(inZone) playSurge();
-}
-
-function completeSurge(perfect){
-  surgeActive=false;
-  $('surge-wrap').classList.remove('show');
-  surgePerfect=perfect;
-  if(perfect){
-    surgesHit++;perfectSurges++;consecutivePerfectSurges++;
-    toast('⚡','PERFECT SURGE!','+2× bonus');
-  } else {
-    surgesHit++;consecutivePerfectSurges=0;
-  }
-  detonateLines(surgeLines,perfect);
-}
-
-// ── DETONATION ──────────────────────────────────
-function detonateLines(lines,perfect){
   // Collect all cells to clear
   const toClear=new Set();
-  for(const ln of lines){
-    if(ln.type==='row') for(let c=0;c<COLS;c++) toClear.add(ln.idx+','+c);
-    else for(let r=0;r<ROWS;r++) toClear.add(r+','+ln.idx);
-  }
-  // Find chain cells (adjacent filled cells outside cleared lines)
-  const chainCells=[];
+  fullRows.forEach(r=>{for(let c=0;c<COLS;c++) toClear.add(r+','+c);});
+  fullCols.forEach(c=>{for(let r=0;r<ROWS;r++) toClear.add(r+','+c);});
+
+  // Bonus: adjacent filled cells outside cleared lines (chain bonus)
+  const bonus=new Set();
   for(const key of toClear){
     const[r,c]=key.split(',').map(Number);
     [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc])=>{
-      const nr=r+dr,nc=c+dc;
-      const nk=nr+','+nc;
-      if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]&&!toClear.has(nk)){
-        chainCells.push({r:nr,c:nc,key:nk});
-        toClear.add(nk);
-      }
+      const nr=r+dr,nc=c+dc,nk=nr+','+nc;
+      if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&grid[nr][nc]&&!toClear.has(nk)) bonus.add(nk);
     });
   }
-  // Spawn particles
+
+  // Particles
   for(const key of toClear){
     const[r,c]=key.split(',').map(Number);
-    const cell=grid[r][c];
-    if(cell) spawnBurst(GOFF_X+c*CELL+CELL/2,GOFF_Y+r*CELL+CELL/2,cell.color,perfect);
+    if(grid[r][c]) spawnBurst(GOFF_X+c*CELL+CELL/2,GOFF_Y+r*CELL+CELL/2,grid[r][c].color,true);
   }
-  // Clear cells with stagger animation
-  let delay=0;
-  for(const key of toClear){
-    const[r,c]=key.split(',').map(Number);
-    setTimeout(()=>{
-      grid[r][c]=null;
-    },delay);
-    delay+=20;
-  }
-  const numLines=lines.length;
-  const chainLen=chainCells.length;
-  // Scoring
-  const basePts=numLines*100+chainLen*20;
-  const surgeMult=perfect?2:1;
-  combo++;
-  if(combo>bestCombo) bestCombo=combo;
-  comboT=Date.now();
-  const comboMult=Math.max(1,combo);
-  const pts=Math.round(basePts*surgeMult*comboMult);
-  score+=pts;
-  linesCleared+=numLines;
-  // Float
-  const cx2=W/2,cy2=GOFF_Y+CELL*ROWS/2;
-  floats.push({x:cx2,y:cy2,text:'+'+pts.toLocaleString()+(perfect?' ⚡':'')+(combo>1?' '+combo+'×':''),life:1,vy:-1.8,big:combo>1||perfect});
+
+  // Clear immediately
+  for(const key of toClear){const[r,c]=key.split(',').map(Number);grid[r][c]=null;}
+
+  // Score
+  const numLines=fullRows.length+fullCols.length;
+  combo++;if(combo>bestCombo)bestCombo=combo;comboT=Date.now();
+  const pts=Math.round((numLines*100+bonus.size*15)*Math.max(1,combo));
+  score+=pts;linesCleared+=numLines;
+
+  floats.push({x:W/2,y:GOFF_Y+CELL*ROWS/2,text:'+'+pts.toLocaleString()+(combo>1?' '+combo+'×':''),life:1,vy:-1.8,big:combo>1});
   playClear(numLines);
-  // Show combo in HUD
+
   if(combo>1){
-    $('combo-hud').textContent=combo+'× COMBO!';
-    $('combo-hud').style.opacity='1';
-    setTimeout(()=>{$('combo-hud').style.opacity='0';},1500);
+    $('combo-hud').textContent=combo+'× COMBO!';$('combo-hud').style.opacity='1';
+    setTimeout(()=>$('combo-hud').style.opacity='0',1500);
   }
-  linesCleared+=0; // already incremented
-  setTimeout(()=>{
-    afterPlace();
-    updateHUD();
-  },Math.min(toClear.size*20+100,500));
+
+  afterPlace();updateHUD();
 }
 
 function afterPlace(){
   renderPieceTray();
-  // Refill when all 3 are used
   const anyLeft=pieces.some(p=>p!==null);
   if(!anyLeft){
     refillPieces();
     renderPieceTray();
     roundsPlayed++;
-    if(roundsPlayed%8===0) setTimeout(()=>triggerLootBox(),600);
   }
   if(!hasAnyValidMove()) setTimeout(()=>endGame(),400);
   else updateHUD();
@@ -771,27 +704,13 @@ function drawGrid(now){
     if(!cell)continue;
     drawBlock(cx,GOFF_X+c*CELL,GOFF_Y+r*CELL,CELL,cell.color,1);
   }
-  // Ghost — show where piece will land
-  const ghostIdx=isDragging?dragPieceIdx:tapSelected;
-  if(ghostPos&&ghostIdx>=0&&pieces[ghostIdx]){
-    const p=pieces[ghostIdx];
-    cx.globalAlpha=0.4;
-    for(const[dr,dc]of p.cells) drawBlock(cx,GOFF_X+(ghostPos.col+dc)*CELL,GOFF_Y+(ghostPos.row+dr)*CELL,CELL,p.color,0.8);
+  // Ghost — show where selected piece will land
+  if(ghostPos!==null&&tapSelected>=0&&pieces[tapSelected]){
+    const p=pieces[tapSelected];
+    cx.globalAlpha=0.45;
+    for(const[dr,dc]of p.cells)
+      drawBlock(cx,GOFF_X+(ghostPos.col+dc)*CELL,GOFF_Y+(ghostPos.row+dr)*CELL,CELL,p.color,0.9);
     cx.globalAlpha=1;
-  }
-  // Drag piece — floats above finger
-  if(isDragging&&dragPieceIdx>=0&&pieces[dragPieceIdx]){
-    const p=pieces[dragPieceIdx];
-    const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
-    const minR=Math.min(...rows),minC=Math.min(...cols);
-    const rect=cv.getBoundingClientRect();
-    const fx=dragScreenX-rect.left,fy=dragScreenY-rect.top;
-    const span_r=Math.max(...rows)-minR,span_c=Math.max(...cols)-minC;
-    for(const[dr,dc]of p.cells){
-      const px=fx+(dc-minC-span_c/2)*CELL-CELL*0;
-      const py=fy+(dr-minR-span_r/2)*CELL-CELL*1.4; // float above finger
-      drawBlock(cx,px,py,CELL,p.color,0.95);
-    }
   }
   // Particles
   particles=particles.filter(p=>{
@@ -862,13 +781,103 @@ function renderPieceTray(){
 }
 
 // ── TOUCH / CLICK INPUT ─────────────────────────
-// ── INPUT — DRAG FROM TRAY TO GRID ──────────────
-// Mobile: drag piece from tray slot onto grid
-// Desktop: click slot to select, click grid to place OR drag
-let dragPieceIdx=-1,isDragging=false;
+// ── INPUT — tap slot to select, tap grid to place ──
+// Works on both mobile and desktop. Ghost shows valid placement as you move.
+let tapSelected=-1;   // which tray slot is selected (-1 = none)
+let ghostPos=null;    // {row,col} for ghost preview
+let dragPieceIdx=-1;  // piece being dragged
+let isDragging=false; // true while dragging
 let dragScreenX=0,dragScreenY=0;
-// Also support tap-select + tap-to-place fallback
-let tapSelected=-1;
+
+// Tray slots — tap to select/deselect
+for(let i=0;i<3;i++){
+  const handler=()=>{
+    _doUnlock();
+    if(!pieces[i]){tapSelected=-1;return;}
+    tapSelected=(tapSelected===i)?-1:i;
+    ghostPos=null;
+    renderPieceTray();
+  };
+  $('slot-'+i).addEventListener('click',handler);
+  // Also handle touchend so it feels instant on mobile
+  $('slot-'+i).addEventListener('touchend',e=>{e.preventDefault();handler();},{passive:false});
+}
+
+// Canvas — tap to place, move to show ghost
+cv.addEventListener('click',e=>{
+  _doUnlock();
+  if(tapSelected<0||!pieces[tapSelected])return;
+  placeFromScreen(tapSelected,e.clientX,e.clientY);
+});
+cv.addEventListener('touchend',e=>{
+  e.preventDefault();
+  _doUnlock();
+  if(tapSelected<0||!pieces[tapSelected])return;
+  const t=e.changedTouches[0];
+  placeFromScreen(tapSelected,t.clientX,t.clientY);
+},{passive:false});
+cv.addEventListener('mousemove',e=>{
+  if(tapSelected<0)return;
+  updateGhostFromScreen(tapSelected,e.clientX,e.clientY);
+});
+cv.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(tapSelected<0)return;
+  const t=e.touches[0];
+  updateGhostFromScreen(tapSelected,t.clientX,t.clientY);
+},{passive:false});
+
+function getSnapCell(pieceIdx,screenX,screenY){
+  const p=pieces[pieceIdx];if(!p)return null;
+  const rect=cv.getBoundingClientRect();
+  const lx=screenX-rect.left,ly=screenY-rect.top;
+  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
+  const minR=Math.min(...rows),minC=Math.min(...cols);
+  const maxR=Math.max(...rows),maxC=Math.max(...cols);
+  // Anchor: top-left of piece bounding box snapped to grid
+  let row=Math.round(ly/CELL-(maxR-minR)/2);
+  let col=Math.round(lx/CELL-(maxC-minC)/2);
+  // Clamp so piece stays on board
+  row=Math.max(0,Math.min(ROWS-1-maxR,row));
+  col=Math.max(0,Math.min(COLS-1-maxC,col));
+  return{row,col};
+}
+
+function updateGhostFromScreen(pieceIdx,sx,sy){
+  const p=pieces[pieceIdx];if(!p){ghostPos=null;return;}
+  const snap=getSnapCell(pieceIdx,sx,sy);
+  ghostPos=canPlace(p,snap.row,snap.col)?{...snap,pieceIdx}:null;
+  // Try shifts if exact doesn't work
+  if(!ghostPos){
+    outer: for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+      if(dr===0&&dc===0)continue;
+      if(canPlace(p,snap.row+dr,snap.col+dc)){ghostPos={row:snap.row+dr,col:snap.col+dc,pieceIdx};break outer;}
+    }
+  }
+}
+
+function placeFromScreen(pieceIdx,sx,sy){
+  const p=pieces[pieceIdx];if(!p)return;
+  const snap=getSnapCell(pieceIdx,sx,sy);
+  // Search expanding rings: exact → ±1 → ±2
+  for(let radius=0;radius<=2;radius++){
+    for(let dr=-radius;dr<=radius;dr++) for(let dc=-radius;dc<=radius;dc++){
+      if(Math.max(Math.abs(dr),Math.abs(dc))!==radius)continue;
+      const r=snap.row+dr,c=snap.col+dc;
+      if(canPlace(p,r,c)){
+        pieces[pieceIdx]=null;tapSelected=-1;ghostPos=null;
+        placePiece(p,r,c);
+        return;
+      }
+    }
+  }
+  // No valid spot near here
+  const slot=$('slot-'+pieceIdx);
+  slot.style.borderColor='var(--coral)';
+  setTimeout(()=>renderPieceTray(),400);
+  haptic(20);
+}
+
 
 function getGridCellFromScreen(sx,sy){
   const rect=cv.getBoundingClientRect();
@@ -878,123 +887,6 @@ function getGridCellFromScreen(sx,sy){
   const row=Math.floor(ly/CELL);
   return{row,col};
 }
-
-function getPieceCentroid(piece){
-  const rows=piece.cells.map(([r])=>r);
-  const cols=piece.cells.map(([,c])=>c);
-  return{r:(Math.max(...rows)-Math.min(...rows))/2,c:(Math.max(...cols)-Math.min(...cols))/2};
-}
-
-function tryPlaceAt(pieceIdx,screenX,screenY){
-  const p=pieces[pieceIdx];if(!p)return false;
-  const rect=cv.getBoundingClientRect();
-  const lx=screenX-rect.left,ly=screenY-rect.top;
-  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
-  const span_r=Math.max(...rows);const span_c=Math.max(...cols);
-  const row=Math.round((ly/CELL)-span_r/2);
-  const col=Math.round((lx/CELL)-span_c/2);
-
-  const doPlace=(r,c)=>{
-    // Null FIRST so afterPlace sees correct state
-    pieces[pieceIdx]=null;
-    tapSelected=-1;dragPieceIdx=-1;ghostPos=null;
-    placePiece(p,r,c);
-  };
-
-  if(canPlace(p,row,col)){doPlace(row,col);return true;}
-  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
-    const r2=row+dr,c2=col+dc;
-    if(canPlace(p,r2,c2)){doPlace(r2,c2);return true;}
-  }
-  return false;
-}
-
-function updateGhostFromScreen(pieceIdx,screenX,screenY){
-  const p=pieces[pieceIdx];if(!p){ghostPos=null;return;}
-  const rect=cv.getBoundingClientRect();
-  const lx=screenX-rect.left,ly=screenY-rect.top;
-  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
-  const span_r=Math.max(...rows);const span_c=Math.max(...cols);
-  const row=Math.round((ly/CELL)-span_r/2);
-  const col=Math.round((lx/CELL)-span_c/2);
-  ghostPos=canPlace(p,row,col)?{row,col,pieceIdx}:null;
-  // Try neighbours for ghost
-  if(!ghostPos){
-    for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
-      if(canPlace(p,row+dr,col+dc)){ghostPos={row:row+dr,col:col+dc,pieceIdx};break;}
-    }
-  }
-}
-
-// Tray slot events — DRAG start
-for(let i=0;i<3;i++){
-  const slot=$('slot-'+i);
-  slot.addEventListener('touchstart',e=>{
-    e.stopPropagation();e.preventDefault();
-    _doUnlock();
-    if(!pieces[i])return;
-    dragPieceIdx=i;isDragging=true;
-    const t=e.touches[0];
-    dragScreenX=t.clientX;dragScreenY=t.clientY;
-    // Also set as tap-selected for fallback
-    tapSelected=(tapSelected===i)?-1:i;
-    renderPieceTray();
-  },{passive:false});
-  slot.addEventListener('mousedown',e=>{
-    e.stopPropagation();
-    _doUnlock();
-    if(!pieces[i])return;
-    dragPieceIdx=i;isDragging=false; // mouse uses click-to-place
-    tapSelected=(tapSelected===i)?-1:i;
-    renderPieceTray();
-  });
-}
-
-// Canvas — pointer move updates ghost, pointer up places
-document.addEventListener('touchmove',e=>{
-  if(dragPieceIdx<0)return;
-  const t=e.touches[0];
-  dragScreenX=t.clientX;dragScreenY=t.clientY;
-  updateGhostFromScreen(dragPieceIdx,t.clientX,t.clientY);
-},{passive:true});
-
-document.addEventListener('touchend',e=>{
-  if(dragPieceIdx<0)return;
-  const t=e.changedTouches[0];
-  dragScreenX=t.clientX;dragScreenY=t.clientY;
-  // Check if finger lifted over the canvas
-  const rect=cv.getBoundingClientRect();
-  const overCanvas=t.clientX>=rect.left&&t.clientX<=rect.right&&t.clientY>=rect.top&&t.clientY<=rect.bottom;
-  if(overCanvas){
-    const placed=tryPlaceAt(dragPieceIdx,t.clientX,t.clientY);
-    if(!placed){haptic([8,8]);ghostPos=null;}
-  } else {
-    ghostPos=null;
-  }
-  isDragging=false;
-  dragPieceIdx=-1;
-  renderPieceTray();
-},{passive:true});
-
-// Canvas click (desktop tap-to-place)
-cv.addEventListener('mousedown',e=>{
-  _doUnlock();
-  if(tapSelected>=0&&pieces[tapSelected]){
-    const{row,col}=getGridCellFromScreen(e.clientX,e.clientY);
-    const p=pieces[tapSelected];
-    const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
-    const placR=row-Math.min(...rows),placC=col-Math.min(...cols);
-    if(canPlace(p,placR,placC)){
-      const idx=tapSelected;
-      pieces[idx]=null; // null BEFORE so afterPlace sees it
-      tapSelected=-1;ghostPos=null;
-      placePiece(p,placR,placC);
-    }
-  }
-});
-cv.addEventListener('mousemove',e=>{
-  if(tapSelected>=0) updateGhostFromScreen(tapSelected,e.clientX,e.clientY);
-});
 
 // ── GAME LOOP ───────────────────────────────────
 let _raf=null;
@@ -1014,60 +906,39 @@ function startGame(){
 }
 
 function newGame(){
-  initGrid();score=0;linesCleared=0;surgesHit=0;perfectSurges=0;bestCombo=0;combo=0;particles=[];floats=[];
-  consecutivePerfectSurges=0;surgeActive=false;clearInterval(surgeInterval);$('surge-wrap').classList.remove('show');
-  tapSelected=-1;ghostPos=null;
+  initGrid();score=0;linesCleared=0;surgesHit=0;perfectSurges=0;bestCombo=0;combo=0;consecutivePerfectSurges=0;particles=[];floats=[];
+  tapSelected=-1;dragPieceIdx=-1;isDragging=false;ghostPos=null;
   pieces=[null,null,null];
-  refillPieces();
-  renderPieceTray();
-  $('overlay').classList.remove('show');
-  $('gameover-banner').classList.remove('show');
-  updateHUD();
-  roundsToday++;
+  refillPieces();renderPieceTray();
+  $('overlay').classList.remove('show');$('gameover-banner').classList.remove('show');
+  updateHUD();roundsToday++;
 }
 
 function endGame(){
-  clearInterval(surgeInterval);
-  $('surge-wrap').classList.remove('show');
-  surgeActive=false;
   playGameOver();haptic([20,50,30]);
-  // Check achievements / missions
   const gs=globalStats;
-  if(score>gs.bestScore){gs.bestScore=score;}
-  if(linesCleared>gs.bestLines){gs.bestLines=linesCleared;}
-  if(surgesHit>gs.bestSurges){gs.bestSurges=surgesHit;}
-  if(bestCombo>gs.bestCombo){gs.bestCombo=bestCombo;}
-  if(perfectSurges>=3&&consecutivePerfectSurges>=3){gs.perfectSurgeRow=Math.max(gs.perfectSurgeRow||0,consecutivePerfectSurges);}
+  if(score>gs.bestScore)gs.bestScore=score;
+  if(linesCleared>gs.bestLines)gs.bestLines=linesCleared;
+  if(bestCombo>gs.bestCombo)gs.bestCombo=bestCombo;
   gs.totalRounds++;gs.streak=pStreak;gs.level=pLevel;
   gamesPlayed++;
-  // XP + sparks
   const xpGain=Math.round(score/8);
-  const spkGain=2+Math.floor(linesCleared*0.5)+Math.floor(surgesHit*0.8);
-  addXP(xpGain);addSparks(spkGain);
-  saveGS();
-  // Check missions
-  const rs={lines:linesCleared,score,surges:surgesHit,bestCombo,roundsToday,perfectSurges,bestChain:longestChain||0};
+  const spkGain=2+Math.floor(linesCleared*0.5);
+  addXP(xpGain);addSparks(spkGain);saveGS();
+  const rs={lines:linesCleared,score,bestCombo,roundsToday,bestChain:longestChain||0};
   checkMissions(rs);checkAchievements();
   submitScore(score);
-  // Show overlay
-  $('gameover-banner').classList.add('show');
-  $('ov-score').textContent=score.toLocaleString();
-  $('ov-sub').textContent=score>pBest?'New best! 🎉':'Keep going...';
   if(score>pBest){pBest=score;try{localStorage.setItem('sg_best',pBest);}catch(_){}}
-  $('ov-lines').textContent=linesCleared;
-  $('ov-surges').textContent=surgesHit;
-  $('ov-best-combo').textContent=bestCombo+'×';
-  $('ov-xp').textContent='+'+xpGain;
-  $('ov-earned').textContent='+'+spkGain+' ⚡ earned';
-  const ab=$('ov-btns');ab.innerHTML='';
-  const b1=document.createElement('button');b1.className='btn btn-p';b1.textContent='↺ Play Again';b1.onclick=newGame;ab.appendChild(b1);
-  const b2=document.createElement('button');b2.className='btn btn-s';b2.textContent='⊞ Hub';b2.onclick=()=>openHub('missions');ab.appendChild(b2);
-  if(roundsPlayed%8===0){
-    const cb=document.createElement('button');cb.className='btn';cb.style.cssText='background:linear-gradient(135deg,#FF8C00,#FF4560);color:#fff;animation:crate-pulse 1.4s infinite;width:100%;margin-top:6px;font-family:Audiowide,sans-serif;font-size:13px;letter-spacing:.06em;border:none;cursor:pointer;padding:12px;border-radius:12px';cb.textContent='🎁 Open Mystery Crate!';cb.onclick=()=>{$('overlay').classList.remove('show');triggerLootBox();};ab.appendChild(cb);
-  }
-  setTimeout(()=>$('overlay').classList.add('show'),200);
+  // Reset board immediately so it looks clean
+  initGrid();pieces=[null,null,null];particles=[];floats=[];
+  renderPieceTray();
+  // Open crate automatically, then show results after collect
+  _pendingResults={score,xpGain,spkGain};
+  setTimeout(()=>triggerLootBox(),400);
   updateHUD();
 }
+
+let _pendingResults=null;
 
 let longestChain=0; // track for missions
 
@@ -1133,13 +1004,17 @@ function buyItem(id){
 }
 
 function updateHUD(){
-  $('score-v').textContent=score.toLocaleString();
-  $('sparks-v').textContent=sparks.toLocaleString();
-  $('streak-v').textContent=pStreak+'🔥';
-  $('lv-badge').textContent='LV '+pLevel;
+  const set=(id,v)=>{const el=$(id);if(el)el.textContent=v;};
+  const setStyle=(id,prop,v)=>{const el=$(id);if(el)el.style[prop]=v;};
+  set('score-v',score.toLocaleString());
+  set('sparks-v',sparks.toLocaleString());
+  set('streak-v',pStreak+'🔥');
+  set('lv-badge','LV '+pLevel);
   const pct=Math.min(100,(pXP/xpNeeded(pLevel))*100);
-  $('xp-bar').style.width=pct.toFixed(1)+'%';
-  $('xp-label').textContent=pXP.toLocaleString()+'/'+xpNeeded(pLevel).toLocaleString();
+  setStyle('xp-bar','width',pct.toFixed(1)+'%');
+  set('xp-label',pXP.toLocaleString()+'/'+xpNeeded(pLevel).toLocaleString());
+  if($('hub-sparks'))$('hub-sparks').textContent=sparks.toLocaleString();
+  if($('hub-crystals'))$('hub-crystals').textContent=crystals;
 }
 
 // ── LEADERBOARD ─────────────────────────────────
@@ -1173,12 +1048,9 @@ function closeHub(){hubOpen=false;$('hub').classList.remove('open');}
 function handleHubBg(e){if(e.target===$('hub'))closeHub();}
 function setHubTab(tab){
   currentTab=tab;
-  ['missions','achievements','shop','gemshop','streak'].forEach(t=>$('tab-'+t)&&$('tab-'+t).classList.toggle('on',t===tab));
-  $('hub-sparks').textContent=sparks.toLocaleString();$('hub-crystals').textContent=crystals;
+  ['missions','achievements','streak'].forEach(t=>$('tab-'+t)&&$('tab-'+t).classList.toggle('on',t===tab));
   if(tab==='missions')buildMissionsTab();
   else if(tab==='achievements')buildAchievementsTab();
-  else if(tab==='shop')buildShopTab();
-  else if(tab==='gemshop')buildGemShopTab();
   else if(tab==='streak')buildStreakTab();
 }
 function buildMissionsTab(){
@@ -1301,7 +1173,34 @@ const SYM_H=80;let slotSpinning=false,slotResult=null,slotInitDone=false;
 function initSlots(){if(slotInitDone)return;slotInitDone=true;for(let r=0;r<3;r++){const strip=$('reel-'+r);strip.innerHTML='';STRIP.forEach(sym=>{const el=document.createElement('div');el.className='reel-sym';el.textContent=sym;strip.appendChild(el);});strip.style.transition='none';strip.style.transform='translateY(0px)';}}
 function doSlotSpin(){if(slotSpinning)return;slotSpinning=true;const btn=$('slot-spin-btn');btn.disabled=true;$('slot-result').style.display='none';$('slot-winline').classList.remove('lit');$('slot-sub').textContent='Spinning…';const wts=[25,18,10,5,16,8,3,4,3,2,9,2,1];const rand3=()=>SLOT_SYMS[Math.floor(Math.random()*SLOT_SYMS.length)];let stops;const r=Math.random();if(r<0.35){const s=rand3();stops=[s,s,s];}else if(r<0.55){const s=rand3(),t=rand3();stops=Math.random()<0.5?[s,s,t]:[s,t,s];}else{let a=rand3(),b,c;do{b=rand3();}while(b===a);do{c=rand3();}while(c===a||c===b);stops=[a,b,c];}slotResult={stops};const dur=[1600,2000,2500];let done2=0;for(let ri=0;ri<3;ri++){const strip=$('reel-'+ri);const wrap=$('rw-'+ri);const ti=SLOT_SYMS.indexOf(stops[ri]);const final=Math.floor(STRIP.length/SLOT_SYMS.length/2)*SLOT_SYMS.length+ti;const safe=Math.min(final,STRIP.length-1);wrap.classList.add('spinning');strip.style.transition='none';strip.style.transform='translateY(0px)';strip.getBoundingClientRect();strip.style.transition=`transform ${dur[ri]}ms cubic-bezier(0.17,0.67,0.16,1.0)`;strip.style.transform=`translateY(${-safe*SYM_H}px)`;setTimeout(()=>{wrap.classList.remove('spinning');done2++;if(done2===3){slotSpinning=false;showSlotResult();}},dur[ri]+50);}};
 function showSlotResult(){const s=slotResult.stops;let prize;if(s[0]===s[1]&&s[1]===s[2]){prize=THREE_MATCH[s[0]]||CONSOLATION;}else if(s[0]===s[1]||s[1]===s[2]||s[0]===s[2]){const m=s[0]===s[1]?s[0]:s[0]===s[2]?s[0]:s[1];prize=TWO_MATCH[m]||CONSOLATION;}else{prize=CONSOLATION;}slotResult.prize=prize;if(prize!==CONSOLATION)$('slot-winline').classList.add('lit');$('sr-icon').textContent=prize.icon;$('sr-name').textContent=prize.label;if(prize.type==='sparks')$('sr-val').textContent='+'+prize.value+' ⚡';else if(prize.type==='crystals')$('sr-val').textContent='+'+prize.value+' 💎';else if(prize.type==='xp')$('sr-val').textContent='+'+prize.value+' XP';else $('sr-val').textContent='FX unlocked!';$('slot-result').style.display='block';$('slot-sub').textContent=prize===CONSOLATION?'Better luck next time!':'You won!';}
-function collectLoot(){if(!slotResult||!slotResult.prize)return;const p=slotResult.prize;if(p.type==='sparks')addSparks(p.value);else if(p.type==='crystals')addCrystals(p.value);else if(p.type==='xp')addXP(p.value);else if(p.type==='item'){ownedItems.add(p.value);try{localStorage.setItem('sg_owned',JSON.stringify([...ownedItems]));}catch(_){}}slotResult=null;$('loot-overlay').classList.remove('show');$('slot-spin-btn').disabled=false;updateHUD();}
+function collectLoot(){
+  if(!slotResult||!slotResult.prize)return;
+  const p=slotResult.prize;
+  if(p.type==='sparks')addSparks(p.value);
+  else if(p.type==='crystals')addCrystals(p.value);
+  else if(p.type==='xp')addXP(p.value);
+  else if(p.type==='item'){ownedItems.add(p.value);try{localStorage.setItem('sg_owned',JSON.stringify([...ownedItems]));}catch(_){}}
+  slotResult=null;
+  $('loot-overlay').classList.remove('show');
+  $('slot-spin-btn').disabled=false;
+  updateHUD();
+  // Show results screen after crate
+  if(_pendingResults){
+    const{score:s,xpGain,spkGain}=_pendingResults;_pendingResults=null;
+    $('gameover-banner').classList.add('show');
+    $('ov-score').textContent=s.toLocaleString();
+    $('ov-sub').textContent=s>=pBest?'New best! 🎉':'Keep going...';
+    $('ov-lines').textContent=linesCleared;
+    $('ov-surges').textContent=surgesHit;
+    $('ov-best-combo').textContent=bestCombo+'×';
+    $('ov-xp').textContent='+'+xpGain;
+    $('ov-earned').textContent='+'+spkGain+' ⚡ earned';
+    const ab=$('ov-btns');ab.innerHTML='';
+    const b1=document.createElement('button');b1.className='btn btn-p';b1.textContent='↺ Play Again';b1.onclick=newGame;ab.appendChild(b1);
+    const b2=document.createElement('button');b2.className='btn btn-s';b2.textContent='⊞ Hub';b2.onclick=()=>openHub('missions');ab.appendChild(b2);
+    $('overlay').classList.add('show');
+  }
+}
 function triggerLootBox(){initSlots();$('slot-result').style.display='none';$('slot-sub').textContent='Tap SPIN to reveal your prize!';$('slot-cost').textContent='Free spin — earned from playing';$('slot-spin-btn').disabled=false;$('slot-spin-btn').textContent='🎰 SPIN!';$('slot-spin-btn').style.background='linear-gradient(135deg,var(--amber),var(--coral))';$('slot-winline').classList.remove('lit');$('loot-overlay').classList.add('show');}
 
 // ── BOOT ────────────────────────────────────────

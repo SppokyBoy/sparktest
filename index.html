@@ -48,13 +48,13 @@ body{font-family:'DM Sans',system-ui,sans-serif;color:var(--t1)}
 
 /* ── GAME AREA ── */
 #game-wrap{position:fixed;left:0;right:0;display:flex;flex-direction:column;align-items:center;touch-action:none}
-#grid-canvas{display:block;border-radius:12px;touch-action:none}
+#drag-canvas{position:fixed;inset:0;pointer-events:none;z-index:25;}
 
 /* ── PIECE TRAY ── */
 #tray{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-around;align-items:flex-end;padding:8px max(12px,var(--sal)) max(16px,calc(var(--sab)+8px));gap:8px;background:rgba(8,8,14,.9);border-top:1px solid var(--b1);backdrop-filter:blur(16px);touch-action:none}
 .piece-slot{flex:1;max-width:100px;min-height:80px;display:flex;align-items:center;justify-content:center;border-radius:var(--r12);border:1px solid var(--b2);background:var(--bg3);position:relative;transition:border-color .15s,background .15s;touch-action:none}
 .piece-slot.selected{border-color:var(--amber);background:rgba(255,140,0,.08);box-shadow:0 0 14px rgba(255,140,0,.2)}
-.piece-slot.empty-slot{opacity:.3}
+.piece-slot.dragging{opacity:.35;transform:scale(.92)}
 .piece-slot canvas{display:block;pointer-events:none}
 
 /* ── SURGE BAR ── */
@@ -262,6 +262,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;color:var(--t1)}
 <div id="game-wrap">
   <canvas id="grid-canvas"></canvas>
 </div>
+<canvas id="drag-canvas"></canvas>
 
 <!-- Piece tray -->
 <div id="tray">
@@ -494,7 +495,9 @@ let roundsPlayed=0;
 // ── CANVAS ──────────────────────────────────────
 const cv=$('grid-canvas');
 const cx=cv.getContext('2d');
-let CELL=40,GOFF_X=0,GOFF_Y=0; // grid offset on canvas
+const dc=$('drag-canvas');
+const dx=dc.getContext('2d');
+let CELL=40,GOFF_X=0,GOFF_Y=0;
 
 let CV_TOP=0,CV_LEFT=0; // absolute position of canvas on screen
 
@@ -508,8 +511,10 @@ function layout(){
   CELL=Math.max(28,Math.min(cellByH,cellByW,52));
   const gw=CELL*COLS,gh=CELL*ROWS;
   cv.width=gw;cv.height=gh;
-  GOFF_X=0;GOFF_Y=0;
   cv.style.width=gw+'px';cv.style.height=gh+'px';
+  GOFF_X=0;GOFF_Y=0;
+  dc.width=W;dc.height=H;
+  dc.style.width=W+'px';dc.style.height=H+'px';
   const wrap=$('game-wrap');
   wrap.style.top=(hudH+6)+'px';
   // Update absolute canvas position after layout
@@ -704,29 +709,25 @@ function drawGrid(now){
     if(!cell)continue;
     drawBlock(cx,GOFF_X+c*CELL,GOFF_Y+r*CELL,CELL,cell.color,1);
   }
-  // Ghost — show snapped landing position on grid
+  // Snapped ghost on grid — Block Blast style outline
   const activeIdx=dragPieceIdx>=0?dragPieceIdx:tapSelected;
   if(ghostPos!==null&&activeIdx>=0&&pieces[activeIdx]){
     const p=pieces[activeIdx];
-    cx.globalAlpha=0.45;
-    for(const[dr,dc]of p.cells)
-      drawBlock(cx,GOFF_X+(ghostPos.col+dc)*CELL,GOFF_Y+(ghostPos.row+dr)*CELL,CELL,p.color,0.9);
-    cx.globalAlpha=1;
-  }
-  // Drag piece — floats above finger so it's visible
-  if(isDragging&&dragPieceIdx>=0&&pieces[dragPieceIdx]){
-    const p=pieces[dragPieceIdx];
-    const isMob=('ontouchstart' in window);
-    const rect=cv.getBoundingClientRect();
-    const fx=dragScreenX-rect.left;
-    const fy=dragScreenY-rect.top;
-    const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
-    const maxR=Math.max(...rows),maxC=Math.max(...cols);
-    const offY=isMob?-CELL*2.2:-CELL*0.5; // above finger on mobile
     for(const[dr,dc]of p.cells){
-      const px=fx+(dc-maxC/2)*CELL;
-      const py=fy+(dr-maxR/2)*CELL+offY;
-      drawBlock(cx,px,py,CELL,p.color,0.92);
+      const gx=GOFF_X+(ghostPos.col+dc)*CELL;
+      const gy=GOFF_Y+(ghostPos.row+dr)*CELL;
+      const pad=2,r=5;
+      cx.save();
+      cx.globalAlpha=0.28;
+      cx.fillStyle=p.color;
+      roundRect(cx,gx+pad,gy+pad,CELL-pad*2,CELL-pad*2,r);
+      cx.fill();
+      cx.globalAlpha=0.75;
+      cx.strokeStyle='rgba(255,255,255,0.65)';
+      cx.lineWidth=2;
+      roundRect(cx,gx+pad,gy+pad,CELL-pad*2,CELL-pad*2,r);
+      cx.stroke();
+      cx.restore();
     }
   }
   // Particles
@@ -750,6 +751,23 @@ function drawGrid(now){
   });
   // Combo timeout reset
   if(combo>0&&Date.now()-comboT>2000) combo=0;
+}
+
+function drawDragLayer(){
+  dc.width=dc.width; // fast clear
+  if(!isDragging||dragPieceIdx<0||!pieces[dragPieceIdx])return;
+  const p=pieces[dragPieceIdx];
+  const isMob=('ontouchstart' in window);
+  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
+  const maxR=Math.max(...rows),maxC=Math.max(...cols);
+  const offY=isMob?-(CELL*(maxR+1)*0.5+CELL*1.1):-(CELL*(maxR+1)*0.5);
+  dx.save();dx.globalAlpha=0.92;
+  for(const[dr,dc2]of p.cells){
+    const px=dragScreenX+(dc2-maxC/2)*CELL;
+    const py=dragScreenY+(dr-maxR/2)*CELL+offY;
+    drawBlock(dx,px,py,CELL,p.color,1);
+  }
+  dx.restore();
 }
 
 function drawBlock(ctx,x,y,sz,col,alpha){
@@ -784,7 +802,7 @@ function renderPieceTray(){
     const pc=$('pc-'+i);
     const p=pieces[i];
     if(!p){slot.className='piece-slot empty-slot';pc.width=60;pc.height=60;pc.getContext('2d').clearRect(0,0,60,60);continue;}
-    slot.className='piece-slot'+(tapSelected===i||dragPieceIdx===i?' selected':'');
+    slot.className='piece-slot'+(tapSelected===i||dragPieceIdx===i?' selected':'')+(dragPieceIdx===i?' dragging':'');
     // Calculate piece bounding box
     const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
     const maxR=Math.max(...rows),maxC=Math.max(...cols);
@@ -807,15 +825,16 @@ let tapSelected=-1; // unused for placement, kept for tray highlight
 function getSnapCell(pieceIdx,screenX,screenY){
   const p=pieces[pieceIdx];if(!p)return null;
   const rect=cv.getBoundingClientRect();
-  // On mobile offset UP so finger doesn't cover the piece
   const isMob=('ontouchstart' in window);
-  const fingerOffset=isMob?CELL*1.8:0;
-  const lx=screenX-rect.left;
-  const ly=screenY-rect.top-fingerOffset;
   const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
   const maxR=Math.max(...rows),maxC=Math.max(...cols);
-  let row=Math.round(ly/CELL-(maxR)/2);
-  let col=Math.round(lx/CELL-(maxC)/2);
+  const offY=isMob?-(CELL*(maxR+1)*0.5+CELL*1.1):-(CELL*(maxR+1)*0.5);
+  // fx/fy are where the piece top-left would be drawn
+  const fx=screenX-rect.left;
+  const fy=screenY-rect.top+offY;
+  // Use Math.round so ghost aligns exactly with floating piece visual position
+  let row=Math.round(fy/CELL-maxR/2);
+  let col=Math.round(fx/CELL-maxC/2);
   row=Math.max(0,Math.min(ROWS-1-maxR,row));
   col=Math.max(0,Math.min(COLS-1-maxC,col));
   return{row,col};
@@ -823,31 +842,39 @@ function getSnapCell(pieceIdx,screenX,screenY){
 
 function updateGhostFromScreen(pieceIdx,sx,sy){
   const p=pieces[pieceIdx];if(!p){ghostPos=null;return;}
+  // Hide ghost when finger (with piece offset) is not near the grid
+  const rect=cv.getBoundingClientRect();
+  const isMob=('ontouchstart' in window);
+  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
+  const maxR=Math.max(...rows),maxC=Math.max(...cols);
+  const offY=isMob?-(CELL*(maxR+1)*0.5+CELL*1.1):-(CELL*(maxR+1)*0.5);
+  // Effective piece centre on screen
+  const pieceScreenY=sy+offY+maxR/2*CELL;
+  const pieceScreenX=sx;
+  // Only show ghost if effective piece position overlaps or is near the grid
+  const margin=CELL*1.5;
+  const nearGrid=pieceScreenX>=rect.left-margin&&pieceScreenX<=rect.right+margin&&
+                 pieceScreenY>=rect.top-margin&&pieceScreenY<=rect.bottom+margin;
+  if(!nearGrid){ghostPos=null;return;}
   const snap=getSnapCell(pieceIdx,sx,sy);if(!snap){ghostPos=null;return;}
   if(canPlace(p,snap.row,snap.col)){ghostPos={...snap,pieceIdx};return;}
-  outer: for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
     if(!dr&&!dc)continue;
-    if(canPlace(p,snap.row+dr,snap.col+dc)){ghostPos={row:snap.row+dr,col:snap.col+dc,pieceIdx};break outer;}
+    if(canPlace(p,snap.row+dr,snap.col+dc)){ghostPos={row:snap.row+dr,col:snap.col+dc,pieceIdx};return;}
   }
+  ghostPos=null;
 }
 
-function placeFromScreen(pieceIdx,sx,sy){
+function placeFromScreen(pieceIdx){
+  // Always place at the ghost position — ghost IS the preview of where it goes
+  if(!ghostPos||ghostPos.pieceIdx!==pieceIdx){haptic([8,8]);return false;}
   const p=pieces[pieceIdx];if(!p)return false;
-  const snap=getSnapCell(pieceIdx,sx,sy);if(!snap)return false;
-  for(let radius=0;radius<=2;radius++){
-    for(let dr=-radius;dr<=radius;dr++) for(let dc=-radius;dc<=radius;dc++){
-      if(Math.max(Math.abs(dr),Math.abs(dc))!==radius)continue;
-      const r=snap.row+dr,c=snap.col+dc;
-      if(canPlace(p,r,c)){
-        pieces[pieceIdx]=null;dragPieceIdx=-1;tapSelected=-1;ghostPos=null;
-        haptic(14);
-        placePiece(p,r,c);
-        return true;
-      }
-    }
-  }
-  haptic([8,8]);
-  return false;
+  if(!canPlace(p,ghostPos.row,ghostPos.col)){haptic([8,8]);return false;}
+  const row=ghostPos.row,col=ghostPos.col;
+  pieces[pieceIdx]=null;dragPieceIdx=-1;tapSelected=-1;ghostPos=null;
+  haptic(14);
+  placePiece(p,row,col);
+  return true;
 }
 
 // Tray: touchstart begins drag
@@ -891,22 +918,17 @@ document.addEventListener('mousemove',e=>{
   updateGhostFromScreen(dragPieceIdx,e.clientX,e.clientY);
 });
 
-// Release — place if over grid
+// Release — place at ghost position
 document.addEventListener('touchend',e=>{
   if(!isDragging||dragPieceIdx<0)return;
-  const t=e.changedTouches[0];
-  const rect=cv.getBoundingClientRect();
-  const overGrid=t.clientX>=rect.left&&t.clientX<=rect.right&&t.clientY>=rect.top&&t.clientY<=rect.bottom;
-  if(overGrid) placeFromScreen(dragPieceIdx,t.clientX,t.clientY);
+  placeFromScreen(dragPieceIdx);
   isDragging=false;dragPieceIdx=-1;tapSelected=-1;ghostPos=null;
   renderPieceTray();
 },{passive:true});
 
 document.addEventListener('mouseup',e=>{
   if(!isDragging||dragPieceIdx<0)return;
-  const rect=cv.getBoundingClientRect();
-  const overGrid=e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom;
-  if(overGrid) placeFromScreen(dragPieceIdx,e.clientX,e.clientY);
+  placeFromScreen(dragPieceIdx);
   isDragging=false;dragPieceIdx=-1;tapSelected=-1;ghostPos=null;
   renderPieceTray();
 });
@@ -926,6 +948,7 @@ let _raf=null;
 function loop(){
   _raf=requestAnimationFrame(loop);
   drawGrid(Date.now());
+  drawDragLayer();
 }
 
 // ── GAME FLOW ───────────────────────────────────

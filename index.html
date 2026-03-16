@@ -453,26 +453,53 @@ const STREAK_MILESTONES=[
   {day:30,sparks:350,xp:500, name:'Monthly Legend!',reward:'350 ⚡ + 500 XP',unlockTheme:'storm'},
 ];
 
-// ── PIECE SHAPES ────────────────────────────────
-// Each shape: array of [row,col] offsets, weight
+// ── PIECE SHAPES — full Block Blast set ─────────
 const PIECES=[
-  {name:'I4',  cells:[[0,0],[0,1],[0,2],[0,3]], weight:6},
-  {name:'I3',  cells:[[0,0],[0,1],[0,2]],       weight:9},
-  {name:'I2',  cells:[[0,0],[0,1]],             weight:10},
-  {name:'I4v', cells:[[0,0],[1,0],[2,0],[3,0]], weight:6},
-  {name:'I3v', cells:[[0,0],[1,0],[2,0]],       weight:9},
-  {name:'I2v', cells:[[0,0],[1,0]],             weight:10},
-  {name:'O',   cells:[[0,0],[0,1],[1,0],[1,1]], weight:10},
-  {name:'T',   cells:[[0,1],[1,0],[1,1],[1,2]], weight:8},
-  {name:'Tv',  cells:[[0,0],[1,0],[1,1],[2,0]], weight:8},
-  {name:'L',   cells:[[0,0],[1,0],[2,0],[2,1]], weight:7},
-  {name:'J',   cells:[[0,1],[1,1],[2,0],[2,1]], weight:7},
-  {name:'S',   cells:[[0,1],[0,2],[1,0],[1,1]], weight:7},
-  {name:'Z',   cells:[[0,0],[0,1],[1,1],[1,2]], weight:7},
-  {name:'1x1', cells:[[0,0]],                   weight:6},
-  {name:'2x2', cells:[[0,0],[0,1],[1,0],[1,1]], weight:5},
-  {name:'Plus',cells:[[0,1],[1,0],[1,1],[1,2],[2,1]],weight:4},
-  {name:'Diag',cells:[[0,0],[1,1],[2,2]],       weight:5},
+  // Horizontal lines
+  {name:'I5',  cells:[[0,0],[0,1],[0,2],[0,3],[0,4]], weight:4},
+  {name:'I4',  cells:[[0,0],[0,1],[0,2],[0,3]],       weight:7},
+  {name:'I3',  cells:[[0,0],[0,1],[0,2]],             weight:9},
+  {name:'I2',  cells:[[0,0],[0,1]],                   weight:10},
+  // Vertical lines
+  {name:'I5v', cells:[[0,0],[1,0],[2,0],[3,0],[4,0]], weight:4},
+  {name:'I4v', cells:[[0,0],[1,0],[2,0],[3,0]],       weight:7},
+  {name:'I3v', cells:[[0,0],[1,0],[2,0]],             weight:9},
+  {name:'I2v', cells:[[0,0],[1,0]],                   weight:10},
+  // Squares
+  {name:'O2',  cells:[[0,0],[0,1],[1,0],[1,1]],       weight:9},
+  {name:'O3',  cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], weight:3},
+  // T shapes (all 4 rotations)
+  {name:'T',   cells:[[0,1],[1,0],[1,1],[1,2]],       weight:7},
+  {name:'Tv',  cells:[[0,0],[1,0],[1,1],[2,0]],       weight:7},
+  {name:'Ti',  cells:[[1,0],[1,1],[1,2],[0,1]],       weight:6},
+  {name:'Tr',  cells:[[0,1],[1,0],[1,1],[2,1]],       weight:6},
+  // L shapes (all 4 rotations)
+  {name:'L',   cells:[[0,0],[1,0],[2,0],[2,1]],       weight:7},
+  {name:'L2',  cells:[[0,0],[0,1],[0,2],[1,0]],       weight:7},
+  {name:'L3',  cells:[[0,0],[0,1],[1,1],[2,1]],       weight:7},
+  {name:'L4',  cells:[[2,0],[2,1],[2,2],[1,2]],       weight:7},
+  // J shapes (all 4 rotations)
+  {name:'J',   cells:[[0,1],[1,1],[2,0],[2,1]],       weight:7},
+  {name:'J2',  cells:[[0,0],[1,0],[1,1],[1,2]],       weight:7},
+  {name:'J3',  cells:[[0,0],[0,1],[1,0],[2,0]],       weight:7},
+  {name:'J4',  cells:[[0,0],[0,1],[0,2],[1,2]],       weight:7},
+  // S/Z shapes
+  {name:'S',   cells:[[0,1],[0,2],[1,0],[1,1]],       weight:6},
+  {name:'Sv',  cells:[[0,0],[1,0],[1,1],[2,1]],       weight:6},
+  {name:'Z',   cells:[[0,0],[0,1],[1,1],[1,2]],       weight:6},
+  {name:'Zv',  cells:[[0,1],[1,0],[1,1],[2,0]],       weight:6},
+  // Plus / cross
+  {name:'Plus',cells:[[0,1],[1,0],[1,1],[1,2],[2,1]], weight:4},
+  // Corner 2x2 minus one
+  {name:'CornerTL',cells:[[0,0],[0,1],[1,0]],         weight:8},
+  {name:'CornerTR',cells:[[0,0],[0,1],[1,1]],         weight:8},
+  {name:'CornerBL',cells:[[0,0],[1,0],[1,1]],         weight:8},
+  {name:'CornerBR',cells:[[0,1],[1,0],[1,1]],         weight:8},
+  // Diagonal 3
+  {name:'Diag',cells:[[0,0],[1,1],[2,2]],             weight:4},
+  // Big L 2x3
+  {name:'BigL', cells:[[0,0],[1,0],[2,0],[2,1],[2,2]],weight:4},
+  {name:'BigJ', cells:[[0,2],[1,2],[2,0],[2,1],[2,2]],weight:4},
 ];
 
 // ── GRID ────────────────────────────────────────
@@ -537,9 +564,9 @@ function randomPiece(sizeHint){
   // sizeHint: 'small'|'medium'|'large'|null = any
   const filtered=sizeHint?PIECES.filter(p=>{
     const sz=p.cells.length;
-    if(sizeHint==='small') return sz<=2;
-    if(sizeHint==='medium') return sz===3||sz===4;
-    if(sizeHint==='large') return sz>=4;
+    if(sizeHint==='small') return sz<=3;
+    if(sizeHint==='medium') return sz===4||sz===5;
+    if(sizeHint==='large') return sz>=5;
     return true;
   }):PIECES;
   const pool=filtered.length?filtered:PIECES;
@@ -907,10 +934,11 @@ for(let i=0;i<3;i++){
 // Move — update ghost
 document.addEventListener('touchmove',e=>{
   if(!isDragging||dragPieceIdx<0)return;
+  e.preventDefault(); // prevent scroll interfering with drag
   const t=e.touches[0];
   dragScreenX=t.clientX;dragScreenY=t.clientY;
   updateGhostFromScreen(dragPieceIdx,t.clientX,t.clientY);
-},{passive:true});
+},{passive:false});
 
 document.addEventListener('mousemove',e=>{
   if(!isDragging||dragPieceIdx<0)return;

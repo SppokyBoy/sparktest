@@ -509,8 +509,6 @@ let surgePerfect=false; // tapped in sweet zone
 let consecutivePerfectSurges=0;
 
 // Drag state
-let dragActive=false,dragPieceIdx=-1;
-let dragX=0,dragY=0;
 
 // Particles
 let particles=[];
@@ -522,25 +520,31 @@ const cv=$('grid-canvas');
 const cx=cv.getContext('2d');
 let CELL=40,GOFF_X=0,GOFF_Y=0; // grid offset on canvas
 
+let CV_TOP=0,CV_LEFT=0; // absolute position of canvas on screen
+
 function layout(){
   W=window.innerWidth;H=window.innerHeight;
-  // HUD height estimation ~95px + tray ~105px
   const hudH=$('hud').offsetHeight||95;
-  const trayH=110;
-  const available=H-hudH-trayH-16;
+  const trayH=$('tray').offsetHeight||100;
+  const available=H-hudH-trayH-12;
   const cellByH=Math.floor(available/ROWS);
-  const cellByW=Math.floor(W*0.94/COLS);
-  CELL=Math.min(cellByH,cellByW,56);
+  const cellByW=Math.floor(W*0.96/COLS);
+  CELL=Math.max(28,Math.min(cellByH,cellByW,52));
   const gw=CELL*COLS,gh=CELL*ROWS;
-  cv.width=Math.min(W,gw+20);cv.height=gh+20;
-  GOFF_X=(cv.width-gw)/2;GOFF_Y=10;
-  cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';
-  const gw2=$('game-wrap');
-  gw2.style.top=(hudH+4)+'px';
-  gw2.style.justifyContent='center';
+  cv.width=gw;cv.height=gh;
+  GOFF_X=0;GOFF_Y=0;
+  cv.style.width=gw+'px';cv.style.height=gh+'px';
+  const wrap=$('game-wrap');
+  wrap.style.top=(hudH+6)+'px';
+  // Update absolute canvas position after layout
+  setTimeout(()=>{
+    const r=cv.getBoundingClientRect();
+    CV_TOP=r.top+window.scrollY;
+    CV_LEFT=r.left+window.scrollX;
+  },0);
   renderPieceTray();
 }
-window.addEventListener('resize',layout);
+window.addEventListener('resize',()=>{layout();setTimeout(()=>{const r=cv.getBoundingClientRect();CV_TOP=r.top;CV_LEFT=r.left;},50);});
 
 // ── GRID INIT ───────────────────────────────────
 function initGrid(){
@@ -725,15 +729,16 @@ function detonateLines(lines,perfect){
 }
 
 function afterPlace(){
-  if(allPiecesUsed()){
+  renderPieceTray();
+  // Refill when all 3 are used
+  const anyLeft=pieces.some(p=>p!==null);
+  if(!anyLeft){
     refillPieces();
     renderPieceTray();
     roundsPlayed++;
     if(roundsPlayed%8===0) setTimeout(()=>triggerLootBox(),600);
-  } else {
-    renderPieceTray();
   }
-  if(!hasAnyValidMove()) setTimeout(()=>endGame(),300);
+  if(!hasAnyValidMove()) setTimeout(()=>endGame(),400);
   else updateHUD();
 }
 
@@ -766,21 +771,26 @@ function drawGrid(now){
     if(!cell)continue;
     drawBlock(cx,GOFF_X+c*CELL,GOFF_Y+r*CELL,CELL,cell.color,1);
   }
-  // Ghost
-  if(ghostPos&&selectedPiece>=0&&pieces[selectedPiece]){
-    const p=pieces[selectedPiece];
-    cx.globalAlpha=0.35;
-    for(const[dr,dc]of p.cells) drawBlock(cx,GOFF_X+(ghostPos.col+dc)*CELL,GOFF_Y+(ghostPos.row+dr)*CELL,CELL,p.color,0.6);
+  // Ghost — show where piece will land
+  const ghostIdx=isDragging?dragPieceIdx:tapSelected;
+  if(ghostPos&&ghostIdx>=0&&pieces[ghostIdx]){
+    const p=pieces[ghostIdx];
+    cx.globalAlpha=0.4;
+    for(const[dr,dc]of p.cells) drawBlock(cx,GOFF_X+(ghostPos.col+dc)*CELL,GOFF_Y+(ghostPos.row+dr)*CELL,CELL,p.color,0.8);
     cx.globalAlpha=1;
   }
-  // Drag piece
-  if(dragActive&&dragPieceIdx>=0&&pieces[dragPieceIdx]){
+  // Drag piece — floats above finger
+  if(isDragging&&dragPieceIdx>=0&&pieces[dragPieceIdx]){
     const p=pieces[dragPieceIdx];
-    const[minR,minC]=p.cells.reduce(([mr,mc],[r2,c2])=>[Math.min(mr,r2),Math.min(mc,c2)],[999,999]);
+    const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
+    const minR=Math.min(...rows),minC=Math.min(...cols);
+    const rect=cv.getBoundingClientRect();
+    const fx=dragScreenX-rect.left,fy=dragScreenY-rect.top;
+    const span_r=Math.max(...rows)-minR,span_c=Math.max(...cols)-minC;
     for(const[dr,dc]of p.cells){
-      const px=dragX+(dc-minC)*CELL-CELL/2;
-      const py=dragY+(dr-minR)*CELL-CELL*1.2;
-      drawBlock(cx,px,py,CELL,p.color,1);
+      const px=fx+(dc-minC-span_c/2)*CELL-CELL*0;
+      const py=fy+(dr-minR-span_r/2)*CELL-CELL*1.4; // float above finger
+      drawBlock(cx,px,py,CELL,p.color,0.95);
     }
   }
   // Particles
@@ -838,7 +848,7 @@ function renderPieceTray(){
     const pc=$('pc-'+i);
     const p=pieces[i];
     if(!p){slot.className='piece-slot empty-slot';pc.width=60;pc.height=60;pc.getContext('2d').clearRect(0,0,60,60);continue;}
-    slot.className='piece-slot'+(selectedPiece===i?' selected':'');
+    slot.className='piece-slot'+(tapSelected===i||dragPieceIdx===i?' selected':'');
     // Calculate piece bounding box
     const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
     const maxR=Math.max(...rows),maxC=Math.max(...cols);
@@ -852,73 +862,139 @@ function renderPieceTray(){
 }
 
 // ── TOUCH / CLICK INPUT ─────────────────────────
-// Tray slots: tap to select, then tap grid to place
-for(let i=0;i<3;i++){
-  $('slot-'+i).addEventListener('touchstart',e=>{
-    e.preventDefault();_doUnlock();
-    selectPiece(i);
-  },{passive:false});
-  $('slot-'+i).addEventListener('mousedown',e=>{
-    _doUnlock();selectPiece(i);
-  });
-}
+// ── INPUT — DRAG FROM TRAY TO GRID ──────────────
+// Mobile: drag piece from tray slot onto grid
+// Desktop: click slot to select, click grid to place OR drag
+let dragPieceIdx=-1,isDragging=false;
+let dragScreenX=0,dragScreenY=0;
+// Also support tap-select + tap-to-place fallback
+let tapSelected=-1;
 
-function selectPiece(i){
-  if(!pieces[i])return;
-  if(selectedPiece===i){selectedPiece=-1;ghostPos=null;renderPieceTray();return;}
-  selectedPiece=i;renderPieceTray();
-}
-
-// Grid tap — place selected piece
-cv.addEventListener('touchstart',e=>{
-  e.preventDefault();_doUnlock();
-  const t=e.touches[0];
-  handleGridTap(t.clientX,t.clientY);
-},{passive:false});
-cv.addEventListener('mousedown',e=>{_doUnlock();handleGridTap(e.clientX,e.clientY);});
-cv.addEventListener('touchmove',e=>{
-  e.preventDefault();
-  const t=e.touches[0];
-  updateGhost(t.clientX,t.clientY);
-},{passive:false});
-cv.addEventListener('mousemove',e=>{if(selectedPiece>=0)updateGhost(e.clientX,e.clientY);});
-
-function getGridCell(clientX,clientY){
+function getGridCellFromScreen(sx,sy){
   const rect=cv.getBoundingClientRect();
-  const lx=clientX-rect.left;const ly=clientY-rect.top;
-  const col=Math.floor((lx-GOFF_X)/CELL);
-  const row=Math.floor((ly-GOFF_Y)/CELL);
+  const lx=sx-rect.left;
+  const ly=sy-rect.top;
+  const col=Math.floor(lx/CELL);
+  const row=Math.floor(ly/CELL);
   return{row,col};
 }
 
-function updateGhost(clientX,clientY){
-  if(selectedPiece<0||!pieces[selectedPiece]){ghostPos=null;return;}
-  const{row,col}=getGridCell(clientX,clientY);
-  const p=pieces[selectedPiece];
-  const[minR,minC]=p.cells.reduce(([mr,mc],[r2,c2])=>[Math.min(mr,r2),Math.min(mc,c2)],[999,999]);
-  const placR=row-minR,placC=col-minC;
-  if(canPlace(p,placR,placC)) ghostPos={row:placR,col:placC};
-  else ghostPos=null;
+function getPieceCentroid(piece){
+  const rows=piece.cells.map(([r])=>r);
+  const cols=piece.cells.map(([,c])=>c);
+  return{r:(Math.max(...rows)-Math.min(...rows))/2,c:(Math.max(...cols)-Math.min(...cols))/2};
 }
 
-function handleGridTap(clientX,clientY){
-  if(selectedPiece<0||!pieces[selectedPiece])return;
-  const{row,col}=getGridCell(clientX,clientY);
-  const p=pieces[selectedPiece];
-  const[minR,minC]=p.cells.reduce(([mr,mc],[r2,c2])=>[Math.min(mr,r2),Math.min(mc,c2)],[999,999]);
-  const placR=row-minR,placC=col-minC;
-  if(!canPlace(p,placR,placC)){
-    // Flash slot red briefly
-    const slot=$('slot-'+selectedPiece);
-    slot.style.borderColor='var(--coral)';
-    setTimeout(()=>renderPieceTray(),300);
-    return;
+function tryPlaceAt(pieceIdx,screenX,screenY){
+  const p=pieces[pieceIdx];if(!p)return false;
+  const rect=cv.getBoundingClientRect();
+  const lx=screenX-rect.left,ly=screenY-rect.top;
+  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
+  const span_r=Math.max(...rows);const span_c=Math.max(...cols);
+  const row=Math.round((ly/CELL)-span_r/2);
+  const col=Math.round((lx/CELL)-span_c/2);
+
+  const doPlace=(r,c)=>{
+    // Null FIRST so afterPlace sees correct state
+    pieces[pieceIdx]=null;
+    tapSelected=-1;dragPieceIdx=-1;ghostPos=null;
+    placePiece(p,r,c);
+  };
+
+  if(canPlace(p,row,col)){doPlace(row,col);return true;}
+  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+    const r2=row+dr,c2=col+dc;
+    if(canPlace(p,r2,c2)){doPlace(r2,c2);return true;}
   }
-  placePiece(p,placR,placC);
-  pieces[selectedPiece]=null;
-  selectedPiece=-1;ghostPos=null;
-  renderPieceTray();
+  return false;
 }
+
+function updateGhostFromScreen(pieceIdx,screenX,screenY){
+  const p=pieces[pieceIdx];if(!p){ghostPos=null;return;}
+  const rect=cv.getBoundingClientRect();
+  const lx=screenX-rect.left,ly=screenY-rect.top;
+  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
+  const span_r=Math.max(...rows);const span_c=Math.max(...cols);
+  const row=Math.round((ly/CELL)-span_r/2);
+  const col=Math.round((lx/CELL)-span_c/2);
+  ghostPos=canPlace(p,row,col)?{row,col,pieceIdx}:null;
+  // Try neighbours for ghost
+  if(!ghostPos){
+    for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+      if(canPlace(p,row+dr,col+dc)){ghostPos={row:row+dr,col:col+dc,pieceIdx};break;}
+    }
+  }
+}
+
+// Tray slot events — DRAG start
+for(let i=0;i<3;i++){
+  const slot=$('slot-'+i);
+  slot.addEventListener('touchstart',e=>{
+    e.stopPropagation();e.preventDefault();
+    _doUnlock();
+    if(!pieces[i])return;
+    dragPieceIdx=i;isDragging=true;
+    const t=e.touches[0];
+    dragScreenX=t.clientX;dragScreenY=t.clientY;
+    // Also set as tap-selected for fallback
+    tapSelected=(tapSelected===i)?-1:i;
+    renderPieceTray();
+  },{passive:false});
+  slot.addEventListener('mousedown',e=>{
+    e.stopPropagation();
+    _doUnlock();
+    if(!pieces[i])return;
+    dragPieceIdx=i;isDragging=false; // mouse uses click-to-place
+    tapSelected=(tapSelected===i)?-1:i;
+    renderPieceTray();
+  });
+}
+
+// Canvas — pointer move updates ghost, pointer up places
+document.addEventListener('touchmove',e=>{
+  if(dragPieceIdx<0)return;
+  const t=e.touches[0];
+  dragScreenX=t.clientX;dragScreenY=t.clientY;
+  updateGhostFromScreen(dragPieceIdx,t.clientX,t.clientY);
+},{passive:true});
+
+document.addEventListener('touchend',e=>{
+  if(dragPieceIdx<0)return;
+  const t=e.changedTouches[0];
+  dragScreenX=t.clientX;dragScreenY=t.clientY;
+  // Check if finger lifted over the canvas
+  const rect=cv.getBoundingClientRect();
+  const overCanvas=t.clientX>=rect.left&&t.clientX<=rect.right&&t.clientY>=rect.top&&t.clientY<=rect.bottom;
+  if(overCanvas){
+    const placed=tryPlaceAt(dragPieceIdx,t.clientX,t.clientY);
+    if(!placed){haptic([8,8]);ghostPos=null;}
+  } else {
+    ghostPos=null;
+  }
+  isDragging=false;
+  dragPieceIdx=-1;
+  renderPieceTray();
+},{passive:true});
+
+// Canvas click (desktop tap-to-place)
+cv.addEventListener('mousedown',e=>{
+  _doUnlock();
+  if(tapSelected>=0&&pieces[tapSelected]){
+    const{row,col}=getGridCellFromScreen(e.clientX,e.clientY);
+    const p=pieces[tapSelected];
+    const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
+    const placR=row-Math.min(...rows),placC=col-Math.min(...cols);
+    if(canPlace(p,placR,placC)){
+      const idx=tapSelected;
+      pieces[idx]=null; // null BEFORE so afterPlace sees it
+      tapSelected=-1;ghostPos=null;
+      placePiece(p,placR,placC);
+    }
+  }
+});
+cv.addEventListener('mousemove',e=>{
+  if(tapSelected>=0) updateGhostFromScreen(tapSelected,e.clientX,e.clientY);
+});
 
 // ── GAME LOOP ───────────────────────────────────
 let _raf=null;
@@ -940,7 +1016,7 @@ function startGame(){
 function newGame(){
   initGrid();score=0;linesCleared=0;surgesHit=0;perfectSurges=0;bestCombo=0;combo=0;particles=[];floats=[];
   consecutivePerfectSurges=0;surgeActive=false;clearInterval(surgeInterval);$('surge-wrap').classList.remove('show');
-  selectedPiece=-1;ghostPos=null;
+  tapSelected=-1;ghostPos=null;
   pieces=[null,null,null];
   refillPieces();
   renderPieceTray();

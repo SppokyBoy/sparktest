@@ -455,59 +455,67 @@ const STREAK_MILESTONES=[
 
 // ── PIECE SHAPES — full Block Blast set ─────────
 const PIECES=[
-  // ── Single
-  {name:'1x1',  cells:[[0,0]],                                           weight:8},
-  // ── Dominoes
+  // Lines
+  {name:'dot',  cells:[[0,0]],                                           weight:6},
   {name:'I2h',  cells:[[0,0],[0,1]],                                     weight:10},
-  {name:'I2v',  cells:[[0,0],[1,0]],                                     weight:10},
-  // ── Trominoes — all shapes
+  {name:'I2v',  cells:[[0,0],[1,0]],                                     weight:13},
   {name:'I3h',  cells:[[0,0],[0,1],[0,2]],                               weight:9},
   {name:'I3v',  cells:[[0,0],[1,0],[2,0]],                               weight:9},
-  {name:'L3a',  cells:[[0,0],[1,0],[1,1]],                               weight:8},
-  {name:'L3b',  cells:[[0,1],[1,0],[1,1]],                               weight:8},
-  {name:'L3c',  cells:[[0,0],[0,1],[1,0]],                               weight:8},
-  {name:'L3d',  cells:[[0,0],[0,1],[1,1]],                               weight:8},
-  // ── Tetrominoes — all 7 × all rotations
   {name:'I4h',  cells:[[0,0],[0,1],[0,2],[0,3]],                         weight:7},
   {name:'I4v',  cells:[[0,0],[1,0],[2,0],[3,0]],                         weight:7},
+  {name:'I5h',  cells:[[0,0],[0,1],[0,2],[0,3],[0,4]],                   weight:2},
+  {name:'I5v',  cells:[[0,0],[1,0],[2,0],[3,0],[4,0]],                   weight:2},
+  // Squares
   {name:'O2',   cells:[[0,0],[0,1],[1,0],[1,1]],                         weight:9},
+  {name:'O3',   cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], weight:7},
+  // L-trominoes (corners)
+  {name:'cTL',  cells:[[0,0],[0,1],[1,0]],                               weight:10},
+  {name:'cTR',  cells:[[0,0],[0,1],[1,1]],                               weight:10},
+  {name:'cBL',  cells:[[0,0],[1,0],[1,1]],                               weight:10},
+  {name:'cBR',  cells:[[0,1],[1,0],[1,1]],                               weight:10},
+  // T-tetrominoes
   {name:'T_u',  cells:[[0,1],[1,0],[1,1],[1,2]],                         weight:7},
   {name:'T_d',  cells:[[0,0],[0,1],[0,2],[1,1]],                         weight:7},
   {name:'T_l',  cells:[[0,0],[1,0],[1,1],[2,0]],                         weight:7},
   {name:'T_r',  cells:[[0,1],[1,0],[1,1],[2,1]],                         weight:7},
+  // L-tetrominoes
   {name:'L_0',  cells:[[0,0],[1,0],[2,0],[2,1]],                         weight:7},
   {name:'L_1',  cells:[[0,0],[0,1],[0,2],[1,0]],                         weight:7},
   {name:'L_2',  cells:[[0,0],[0,1],[1,1],[2,1]],                         weight:7},
   {name:'L_3',  cells:[[0,2],[1,0],[1,1],[1,2]],                         weight:7},
+  // J-tetrominoes
   {name:'J_0',  cells:[[0,1],[1,1],[2,0],[2,1]],                         weight:7},
   {name:'J_1',  cells:[[0,0],[1,0],[1,1],[1,2]],                         weight:7},
   {name:'J_2',  cells:[[0,0],[0,1],[1,0],[2,0]],                         weight:7},
   {name:'J_3',  cells:[[0,0],[0,1],[0,2],[1,2]],                         weight:7},
+  // S-tetrominoes
   {name:'S_0',  cells:[[0,1],[0,2],[1,0],[1,1]],                         weight:6},
   {name:'S_1',  cells:[[0,0],[1,0],[1,1],[2,1]],                         weight:6},
+  // Z-tetrominoes
   {name:'Z_0',  cells:[[0,0],[0,1],[1,1],[1,2]],                         weight:6},
   {name:'Z_1',  cells:[[0,1],[1,0],[1,1],[2,0]],                         weight:6},
-  // ── Pentominoes (Block Blast has all of these)
-  {name:'I5h',  cells:[[0,0],[0,1],[0,2],[0,3],[0,4]],                   weight:4},
-  {name:'I5v',  cells:[[0,0],[1,0],[2,0],[3,0],[4,0]],                   weight:4},
-  {name:'O3',   cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], weight:3},
-  {name:'P_0',  cells:[[0,0],[0,1],[1,0],[1,1],[2,0]],                   weight:4},
-  {name:'P_1',  cells:[[0,0],[0,1],[1,0],[1,1],[2,1]],                   weight:4},
-  {name:'P_2',  cells:[[0,0],[1,0],[1,1],[2,0],[2,1]],                   weight:4},
-  {name:'P_3',  cells:[[0,1],[1,0],[1,1],[2,0],[2,1]],                   weight:4},
-  {name:'F_0',  cells:[[0,1],[0,2],[1,0],[1,1],[2,1]],                   weight:4},
-  {name:'Plus', cells:[[0,1],[1,0],[1,1],[1,2],[2,1]],                   weight:5},
-  {name:'U_0',  cells:[[0,0],[0,2],[1,0],[1,1],[1,2]],                   weight:4},
-  {name:'U_1',  cells:[[0,0],[0,1],[1,0],[2,0],[2,1]],                   weight:4},
-  {name:'V_0',  cells:[[0,0],[1,0],[2,0],[2,1],[2,2]],                   weight:4},
-  {name:'V_1',  cells:[[0,2],[1,2],[2,0],[2,1],[2,2]],                   weight:4},
-  {name:'V_2',  cells:[[0,0],[0,1],[0,2],[1,0],[2,0]],                   weight:4},
-  {name:'V_3',  cells:[[0,0],[0,1],[0,2],[1,2],[2,2]],                   weight:4},
-  {name:'W_0',  cells:[[0,0],[1,0],[1,1],[2,1],[2,2]],                   weight:4},
-  {name:'Y_0',  cells:[[0,1],[1,0],[1,1],[2,1],[3,1]],                   weight:4},
-  {name:'Y_1',  cells:[[0,0],[1,0],[1,1],[2,0],[3,0]],                   weight:4},
-  {name:'N_0',  cells:[[0,1],[1,0],[1,1],[2,0],[3,0]],                   weight:4},
-  {name:'N_1',  cells:[[0,0],[1,0],[1,1],[2,1],[3,1]],                   weight:4},
+  // 2×3 and 3×2 rectangles
+  {name:'R2x3', cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],              weight:7},
+  {name:'R3x2', cells:[[0,0],[0,1],[1,0],[1,1],[2,0],[2,1]],              weight:7},
+  // 2-step staircase diagonals
+  {name:'Sd2a', cells:[[0,0],[1,0],[1,1],[2,1]],                          weight:6},
+  {name:'Sd2b', cells:[[0,1],[1,0],[1,1],[2,0]],                          weight:6},
+  // 2-cell true diagonals
+  {name:'D2a',  cells:[[0,0],[1,1]],                                      weight:8},
+  {name:'D2b',  cells:[[0,1],[1,0]],                                      weight:8},
+  // 3-cell true diagonals
+  {name:'D3a',  cells:[[0,0],[1,1],[2,2]],                                weight:6},
+  {name:'D3b',  cells:[[0,2],[1,1],[2,0]],                                weight:6},
+  // Big L pieces (3×3 bounding box, all 4 rotations)
+  {name:'BigL0', cells:[[0,0],[1,0],[2,0],[2,1],[2,2]],                   weight:6},
+  {name:'BigL1', cells:[[0,0],[0,1],[0,2],[1,0],[2,0]],                   weight:6},
+  {name:'BigL2', cells:[[0,0],[0,1],[0,2],[1,2],[2,2]],                   weight:6},
+  {name:'BigL3', cells:[[0,2],[1,2],[2,0],[2,1],[2,2]],                   weight:6},
+  // Big J pieces (mirror, all 4 rotations)
+  {name:'BigJ0', cells:[[0,2],[1,2],[2,0],[2,1],[2,2]],                   weight:6},
+  {name:'BigJ1', cells:[[0,0],[1,0],[2,0],[0,1],[0,2]],                   weight:6},
+  {name:'BigJ2', cells:[[0,0],[0,1],[0,2],[1,2],[2,2]],                   weight:6},
+  {name:'BigJ3', cells:[[0,0],[0,1],[0,2],[2,0],[2,1]],                   weight:6},
 ];
 
 // ── GRID ────────────────────────────────────────
@@ -568,20 +576,126 @@ function initGrid(){
 }
 
 // ── PIECE GENERATION ────────────────────────────
-function randomPiece(sizeHint){
-  // sizeHint: 'small'|'medium'|'large'|null = any
-  const filtered=sizeHint?PIECES.filter(p=>{
-    const sz=p.cells.length;
-    if(sizeHint==='small')  return sz<=3;
-    if(sizeHint==='medium') return sz===4;
-    if(sizeHint==='large')  return sz>=5;
-    return true;
-  }):PIECES;
-  const pool=filtered.length?filtered:PIECES;
-  const total=pool.reduce((s,p)=>s+p.weight,0);
+// ── SMART PIECE GENERATION (Block Blast algorithm) ─
+// Step 1: Board analysis
+// Precomputed row/col fill counts — updated once per analyzeBoard call
+let _rowFill=[], _colFill=[];
+
+function analyzeBoard(){
+  let filled=0, rowsAlmostFull=0, colsAlmostFull=0;
+  _rowFill=[];_colFill=[];
+  for(let r=0;r<ROWS;r++){
+    let n=0;for(let c=0;c<COLS;c++) if(grid[r][c]) n++;
+    _rowFill.push(n);filled+=n;
+    if(n===COLS-1)rowsAlmostFull++;
+  }
+  for(let c=0;c<COLS;c++){
+    let n=0;for(let r=0;r<ROWS;r++) if(grid[r][c]) n++;
+    _colFill.push(n);
+    if(n===ROWS-1)colsAlmostFull++;
+  }
+  const fillPct=filled/(ROWS*COLS);
+  const validPlacements=PIECES.filter(p=>pieceCanFit(p)).length;
+  return{fillPct,rowsAlmostFull,colsAlmostFull,validPlacements,filled};
+}
+
+// Fast placement score using precomputed _rowFill/_colFill
+function scorePlacement(pieceDef,row,col){
+  if(!canPlace(pieceDef,row,col))return{clears:0,setups:0};
+  // Compute delta fill per row/col from this piece
+  const dr={},dc2={};
+  for(const[r,c]of pieceDef.cells){
+    dr[row+r]=(dr[row+r]||0)+1;
+    dc2[col+c]=(dc2[col+c]||0)+1;
+  }
+  let clears=0,setups=0;
+  for(const[r,add] of Object.entries(dr)){
+    const n=_rowFill[+r]+(+add);
+    if(n===COLS) clears++;
+    else if(n>=COLS-1) setups++;
+  }
+  for(const[c,add] of Object.entries(dc2)){
+    const n=_colFill[+c]+(+add);
+    if(n===ROWS) clears++;
+    else if(n>=ROWS-1) setups++;
+  }
+  return{clears,setups};
+}
+
+// Best score across all valid placements — early exit on multi-clear
+function bestPieceScore(pieceDef){
+  let best={clears:0,setups:0};
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    if(!canPlace(pieceDef,r,c))continue;
+    const s=scorePlacement(pieceDef,r,c);
+    if(s.clears>best.clears||(s.clears===best.clears&&s.setups>best.setups)){
+      best=s;
+      if(best.clears>=2) return best; // can't do better, stop early
+    }
+  }
+  return best;
+}
+
+// Step 3: Build weighted pool with difficulty curve
+function buildWeightedPool(boardState){
+  const{fillPct,validPlacements}=boardState;
+  const isSurvival=fillPct>0.60||validPlacements<10; // trigger earlier
+  const isComeback=fillPct>0.42;
+
+  // Difficulty curve — score based
+  // Tier 0 (0–1500):    very easy, lots of straights/squares
+  // Tier 1 (1500–5000): balanced
+  // Tier 2 (5000–12000):slightly harder
+  // Tier 3 (12000+):    true random
+  const tier = score<1500?0 : score<5000?1 : score<12000?2 : 3;
+
+  const easyNames=new Set(['I2h','I2v','I3h','I3v','I4h','I4v','I5h','I5v','O2','O3','R2x3','R3x2']);
+
+  const pool=[];
+  for(const p of PIECES){
+    if(!pieceCanFit(p))continue;
+
+    let w=p.weight;
+    const{clears,setups}=bestPieceScore(p);
+
+    // Line-clear bonus scales with tier
+    const clearBonus=[35,22,14,7][tier];
+    const multiBonus=[70,44,28,14][tier];
+    const setupBonus=[8,5,3,2][tier];
+
+    if(clears>=2) w+=multiBonus;
+    else if(clears===1) w+=clearBonus;
+    else if(setups>=2) w+=setupBonus*2;
+    else if(setups===1) w+=setupBonus;
+
+    // Early game: big boost for easy pieces
+    if(tier===0 && easyNames.has(p.name)) w*=3.5;
+    if(tier===1 && easyNames.has(p.name)) w*=1.6;
+
+    // Survival/comeback
+    if(isSurvival){
+      if(p.cells.length<=3) w*=5;
+      else if(p.cells.length>=5) w=Math.max(1,Math.floor(w*0.1));
+    } else if(isComeback){
+      if(p.cells.length<=3) w*=2.5;
+      else if(p.cells.length>=5) w=Math.floor(w*0.5);
+    }
+
+    if(w>0) pool.push({def:p,w:Math.round(w)});
+  }
+
+  if(!pool.length){
+    const fallback=PIECES.filter(p=>pieceCanFit(p)).sort((a,b)=>a.cells.length-b.cells.length);
+    if(fallback.length) pool.push({def:fallback[0],w:1});
+  }
+  return pool;
+}
+
+function pickFromPool(pool){
+  const total=pool.reduce((s,p)=>s+p.w,0);
   let r=Math.random()*total;
-  for(const p of pool){r-=p.weight;if(r<=0)return p;}
-  return pool[0];
+  for(const p of pool){r-=p.w;if(r<=0)return p.def;}
+  return pool[0].def;
 }
 
 function pieceCanFit(pieceDef){
@@ -589,44 +703,19 @@ function pieceCanFit(pieceDef){
   return false;
 }
 
-function newPieceObj(sizeHint){
-  const def=randomPiece(sizeHint);
+function newPieceObj(boardState){
+  const pool=buildWeightedPool(boardState);
+  const def=pickFromPool(pool);
   const theme=activeTheme();
   const color=theme.blockColors[Math.floor(Math.random()*theme.blockColors.length)];
   return{cells:def.cells,color,name:def.name};
 }
 
 function refillPieces(){
-  // Count filled cells to gauge board pressure
-  let filled=0;
-  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(grid[r][c]) filled++;
-  const fillPct=filled/(ROWS*COLS);
-
-  // Mix sizes matching Block Blast feel:
-  // Low fill (<30%): varied — large, medium, small
-  // Mid fill (30–55%): medium, medium, small
-  // High fill (>55%): small, small, medium
-  let hints;
-  if(fillPct<0.30)      hints=['large','medium','small'];
-  else if(fillPct<0.55) hints=['medium','medium','small'];
-  else                  hints=['small','small','medium'];
-
-  // Shuffle hints so tray order isn't predictable
-  hints.sort(()=>Math.random()-0.5);
-
-  const newPieces=hints.map(h=>newPieceObj(h));
-
-  // Guarantee: at least one piece must be placeable on the current board.
-  // If none fit, replace the last one with a 1×1 (always fits if any cell is open)
-  const anyFits=newPieces.some(p=>pieceCanFit(p));
-  if(!anyFits){
-    const fallbackDef=PIECES.find(p=>p.name==='1x1')||PIECES[0];
-    const theme=activeTheme();
-    const color=theme.blockColors[Math.floor(Math.random()*theme.blockColors.length)];
-    newPieces[2]={cells:fallbackDef.cells,color,name:fallbackDef.name};
+  const board=analyzeBoard();
+  for(let i=0;i<3;i++){
+    if(!pieces[i]) pieces[i]=newPieceObj(board);
   }
-
-  for(let i=0;i<3;i++) if(!pieces[i]) pieces[i]=newPieces[i];
 }
 function allPiecesUsed(){return pieces.every(p=>p===null);}
 

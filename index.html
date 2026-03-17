@@ -455,51 +455,59 @@ const STREAK_MILESTONES=[
 
 // ── PIECE SHAPES — full Block Blast set ─────────
 const PIECES=[
-  // Horizontal lines
-  {name:'I5',  cells:[[0,0],[0,1],[0,2],[0,3],[0,4]], weight:4},
-  {name:'I4',  cells:[[0,0],[0,1],[0,2],[0,3]],       weight:7},
-  {name:'I3',  cells:[[0,0],[0,1],[0,2]],             weight:9},
-  {name:'I2',  cells:[[0,0],[0,1]],                   weight:10},
-  // Vertical lines
-  {name:'I5v', cells:[[0,0],[1,0],[2,0],[3,0],[4,0]], weight:4},
-  {name:'I4v', cells:[[0,0],[1,0],[2,0],[3,0]],       weight:7},
-  {name:'I3v', cells:[[0,0],[1,0],[2,0]],             weight:9},
-  {name:'I2v', cells:[[0,0],[1,0]],                   weight:10},
-  // Squares
-  {name:'O2',  cells:[[0,0],[0,1],[1,0],[1,1]],       weight:9},
-  {name:'O3',  cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], weight:3},
-  // T shapes (all 4 rotations)
-  {name:'T',   cells:[[0,1],[1,0],[1,1],[1,2]],       weight:7},
-  {name:'Tv',  cells:[[0,0],[1,0],[1,1],[2,0]],       weight:7},
-  {name:'Ti',  cells:[[1,0],[1,1],[1,2],[0,1]],       weight:6},
-  {name:'Tr',  cells:[[0,1],[1,0],[1,1],[2,1]],       weight:6},
-  // L shapes (all 4 rotations)
-  {name:'L',   cells:[[0,0],[1,0],[2,0],[2,1]],       weight:7},
-  {name:'L2',  cells:[[0,0],[0,1],[0,2],[1,0]],       weight:7},
-  {name:'L3',  cells:[[0,0],[0,1],[1,1],[2,1]],       weight:7},
-  {name:'L4',  cells:[[2,0],[2,1],[2,2],[1,2]],       weight:7},
-  // J shapes (all 4 rotations)
-  {name:'J',   cells:[[0,1],[1,1],[2,0],[2,1]],       weight:7},
-  {name:'J2',  cells:[[0,0],[1,0],[1,1],[1,2]],       weight:7},
-  {name:'J3',  cells:[[0,0],[0,1],[1,0],[2,0]],       weight:7},
-  {name:'J4',  cells:[[0,0],[0,1],[0,2],[1,2]],       weight:7},
-  // S/Z shapes
-  {name:'S',   cells:[[0,1],[0,2],[1,0],[1,1]],       weight:6},
-  {name:'Sv',  cells:[[0,0],[1,0],[1,1],[2,1]],       weight:6},
-  {name:'Z',   cells:[[0,0],[0,1],[1,1],[1,2]],       weight:6},
-  {name:'Zv',  cells:[[0,1],[1,0],[1,1],[2,0]],       weight:6},
-  // Plus / cross
-  {name:'Plus',cells:[[0,1],[1,0],[1,1],[1,2],[2,1]], weight:4},
-  // Corner 2x2 minus one
-  {name:'CornerTL',cells:[[0,0],[0,1],[1,0]],         weight:8},
-  {name:'CornerTR',cells:[[0,0],[0,1],[1,1]],         weight:8},
-  {name:'CornerBL',cells:[[0,0],[1,0],[1,1]],         weight:8},
-  {name:'CornerBR',cells:[[0,1],[1,0],[1,1]],         weight:8},
-  // Diagonal 3
-  {name:'Diag',cells:[[0,0],[1,1],[2,2]],             weight:4},
-  // Big L 2x3
-  {name:'BigL', cells:[[0,0],[1,0],[2,0],[2,1],[2,2]],weight:4},
-  {name:'BigJ', cells:[[0,2],[1,2],[2,0],[2,1],[2,2]],weight:4},
+  // ── Single
+  {name:'1x1',  cells:[[0,0]],                                           weight:8},
+  // ── Dominoes
+  {name:'I2h',  cells:[[0,0],[0,1]],                                     weight:10},
+  {name:'I2v',  cells:[[0,0],[1,0]],                                     weight:10},
+  // ── Trominoes — all shapes
+  {name:'I3h',  cells:[[0,0],[0,1],[0,2]],                               weight:9},
+  {name:'I3v',  cells:[[0,0],[1,0],[2,0]],                               weight:9},
+  {name:'L3a',  cells:[[0,0],[1,0],[1,1]],                               weight:8},
+  {name:'L3b',  cells:[[0,1],[1,0],[1,1]],                               weight:8},
+  {name:'L3c',  cells:[[0,0],[0,1],[1,0]],                               weight:8},
+  {name:'L3d',  cells:[[0,0],[0,1],[1,1]],                               weight:8},
+  // ── Tetrominoes — all 7 × all rotations
+  {name:'I4h',  cells:[[0,0],[0,1],[0,2],[0,3]],                         weight:7},
+  {name:'I4v',  cells:[[0,0],[1,0],[2,0],[3,0]],                         weight:7},
+  {name:'O2',   cells:[[0,0],[0,1],[1,0],[1,1]],                         weight:9},
+  {name:'T_u',  cells:[[0,1],[1,0],[1,1],[1,2]],                         weight:7},
+  {name:'T_d',  cells:[[0,0],[0,1],[0,2],[1,1]],                         weight:7},
+  {name:'T_l',  cells:[[0,0],[1,0],[1,1],[2,0]],                         weight:7},
+  {name:'T_r',  cells:[[0,1],[1,0],[1,1],[2,1]],                         weight:7},
+  {name:'L_0',  cells:[[0,0],[1,0],[2,0],[2,1]],                         weight:7},
+  {name:'L_1',  cells:[[0,0],[0,1],[0,2],[1,0]],                         weight:7},
+  {name:'L_2',  cells:[[0,0],[0,1],[1,1],[2,1]],                         weight:7},
+  {name:'L_3',  cells:[[0,2],[1,0],[1,1],[1,2]],                         weight:7},
+  {name:'J_0',  cells:[[0,1],[1,1],[2,0],[2,1]],                         weight:7},
+  {name:'J_1',  cells:[[0,0],[1,0],[1,1],[1,2]],                         weight:7},
+  {name:'J_2',  cells:[[0,0],[0,1],[1,0],[2,0]],                         weight:7},
+  {name:'J_3',  cells:[[0,0],[0,1],[0,2],[1,2]],                         weight:7},
+  {name:'S_0',  cells:[[0,1],[0,2],[1,0],[1,1]],                         weight:6},
+  {name:'S_1',  cells:[[0,0],[1,0],[1,1],[2,1]],                         weight:6},
+  {name:'Z_0',  cells:[[0,0],[0,1],[1,1],[1,2]],                         weight:6},
+  {name:'Z_1',  cells:[[0,1],[1,0],[1,1],[2,0]],                         weight:6},
+  // ── Pentominoes (Block Blast has all of these)
+  {name:'I5h',  cells:[[0,0],[0,1],[0,2],[0,3],[0,4]],                   weight:4},
+  {name:'I5v',  cells:[[0,0],[1,0],[2,0],[3,0],[4,0]],                   weight:4},
+  {name:'O3',   cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], weight:3},
+  {name:'P_0',  cells:[[0,0],[0,1],[1,0],[1,1],[2,0]],                   weight:4},
+  {name:'P_1',  cells:[[0,0],[0,1],[1,0],[1,1],[2,1]],                   weight:4},
+  {name:'P_2',  cells:[[0,0],[1,0],[1,1],[2,0],[2,1]],                   weight:4},
+  {name:'P_3',  cells:[[0,1],[1,0],[1,1],[2,0],[2,1]],                   weight:4},
+  {name:'F_0',  cells:[[0,1],[0,2],[1,0],[1,1],[2,1]],                   weight:4},
+  {name:'Plus', cells:[[0,1],[1,0],[1,1],[1,2],[2,1]],                   weight:5},
+  {name:'U_0',  cells:[[0,0],[0,2],[1,0],[1,1],[1,2]],                   weight:4},
+  {name:'U_1',  cells:[[0,0],[0,1],[1,0],[2,0],[2,1]],                   weight:4},
+  {name:'V_0',  cells:[[0,0],[1,0],[2,0],[2,1],[2,2]],                   weight:4},
+  {name:'V_1',  cells:[[0,2],[1,2],[2,0],[2,1],[2,2]],                   weight:4},
+  {name:'V_2',  cells:[[0,0],[0,1],[0,2],[1,0],[2,0]],                   weight:4},
+  {name:'V_3',  cells:[[0,0],[0,1],[0,2],[1,2],[2,2]],                   weight:4},
+  {name:'W_0',  cells:[[0,0],[1,0],[1,1],[2,1],[2,2]],                   weight:4},
+  {name:'Y_0',  cells:[[0,1],[1,0],[1,1],[2,1],[3,1]],                   weight:4},
+  {name:'Y_1',  cells:[[0,0],[1,0],[1,1],[2,0],[3,0]],                   weight:4},
+  {name:'N_0',  cells:[[0,1],[1,0],[1,1],[2,0],[3,0]],                   weight:4},
+  {name:'N_1',  cells:[[0,0],[1,0],[1,1],[2,1],[3,1]],                   weight:4},
 ];
 
 // ── GRID ────────────────────────────────────────
@@ -564,9 +572,9 @@ function randomPiece(sizeHint){
   // sizeHint: 'small'|'medium'|'large'|null = any
   const filtered=sizeHint?PIECES.filter(p=>{
     const sz=p.cells.length;
-    if(sizeHint==='small') return sz<=3;
-    if(sizeHint==='medium') return sz===4||sz===5;
-    if(sizeHint==='large') return sz>=5;
+    if(sizeHint==='small')  return sz<=3;
+    if(sizeHint==='medium') return sz===4;
+    if(sizeHint==='large')  return sz>=5;
     return true;
   }):PIECES;
   const pool=filtered.length?filtered:PIECES;
@@ -875,7 +883,7 @@ function recordGrabOffset(piece,fingerScreenX,fingerScreenY){
   const rows=piece.cells.map(([r])=>r);const cols=piece.cells.map(([,c])=>c);
   const maxR=Math.max(...rows),maxC=Math.max(...cols);
   // Centre piece horizontally on finger, lift above vertically
-  const lift=isMob?2.0:0.5;
+  const lift=isMob?3.5:0.8;
   grabOffX=-(maxC/2)*CELL;
   grabOffY=-(maxR/2)*CELL-lift*CELL;
 }

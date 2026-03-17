@@ -52,7 +52,7 @@ body{font-family:'DM Sans',system-ui,sans-serif;color:var(--t1)}
 
 /* ── PIECE TRAY ── */
 #tray{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-around;align-items:flex-end;padding:8px max(12px,var(--sal)) max(16px,calc(var(--sab)+8px));gap:8px;background:rgba(8,8,14,.9);border-top:1px solid var(--b1);backdrop-filter:blur(16px);touch-action:none}
-.piece-slot{flex:1;max-width:110px;min-height:90px;display:flex;align-items:center;justify-content:center;border-radius:var(--r12);border:1px solid var(--b2);background:var(--bg3);position:relative;transition:border-color .15s,background .15s;touch-action:none}
+.piece-slot{flex:1;max-width:120px;min-height:108px;display:flex;align-items:center;justify-content:center;border-radius:var(--r12);border:1px solid var(--b2);background:var(--bg3);position:relative;transition:border-color .15s,background .15s;touch-action:none}
 .piece-slot.selected{border-color:var(--amber);background:rgba(255,140,0,.08);box-shadow:0 0 14px rgba(255,140,0,.2)}
 .piece-slot.dragging{opacity:.35;transform:scale(.92)}
 .piece-slot canvas{display:block;pointer-events:none}
@@ -771,10 +771,10 @@ function drawGrid(now){
 }
 
 function drawDragLayer(){
-  dc.width=dc.width; // fast clear
+  dc.width=dc.width;
   if(!isDragging||dragPieceIdx<0||!pieces[dragPieceIdx])return;
   const p=pieces[dragPieceIdx];
-  const{ox,oy}=getDragOrigin(p,dragScreenX,dragScreenY);
+  const{ox,oy}=getDragOrigin();
   dx.save();dx.globalAlpha=0.92;
   for(const[dr,dc2]of p.cells){
     drawBlock(dx,ox+dc2*CELL,oy+dr*CELL,CELL,p.color,1);
@@ -818,7 +818,7 @@ function renderPieceTray(){
     const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
     const maxR=Math.max(...rows),maxC=Math.max(...cols);
     // Bigger cells in tray - Block Blast style chunky pieces
-    const sz=Math.floor(Math.min(64/(maxR+1),64/(maxC+1),22));
+    const sz=Math.floor(Math.min(80/(maxR+1),80/(maxC+1),28));
     const pcW=(maxC+1)*sz+10,pcH=(maxR+1)*sz+10;
     pc.width=pcW;pc.height=pcH;
     pc.style.width=pcW+'px';pc.style.height=pcH+'px';
@@ -831,29 +831,39 @@ function renderPieceTray(){
 let dragPieceIdx=-1;
 let isDragging=false;
 let dragScreenX=0,dragScreenY=0;
+let grabOffX=0,grabOffY=0; // offset from finger to piece [0,0] corner, set on grab
 let ghostPos=null;
-let tapSelected=-1; // unused for placement, kept for tray highlight
+let tapSelected=-1;
 
-// Single source of truth: where does cell [0,0] of the piece appear on screen?
-// Used by BOTH drawDragLayer and getSnapCell so they're always in sync.
-function getDragOrigin(piece,screenX,screenY){
+// Returns screen position of piece cell [0,0] based on current finger + grab offset
+function getDragOrigin(){
+  return{ox:dragScreenX+grabOffX, oy:dragScreenY+grabOffY};
+}
+
+// Call once on grab — records where finger touched relative to piece origin
+// pieceCanvasEl is the <canvas> inside the tray slot
+function recordGrabOffset(piece,fingerScreenX,fingerScreenY,pieceCanvasEl){
   const isMob=('ontouchstart' in window);
+  const rect=pieceCanvasEl.getBoundingClientRect();
+  // Where is cell [0,0] of the piece inside the tray canvas?
   const rows=piece.cells.map(([r])=>r);const cols=piece.cells.map(([,c])=>c);
   const maxR=Math.max(...rows),maxC=Math.max(...cols);
-  const lift=isMob?2.0:0.5; // cells above finger
-  return{
-    ox:screenX-(maxC/2)*CELL,
-    oy:screenY-(maxR/2)*CELL-lift*CELL
-  };
+  const sz=Math.floor(Math.min(80/(maxR+1),80/(maxC+1),28));
+  // Cell [0,0] starts at padding=5 inside the tray canvas
+  const cellOriginX=rect.left+5;
+  const cellOriginY=rect.top+5;
+  // Grab offset = piece origin - finger, then lift above finger on mobile
+  const lift=isMob?2.0:0.5;
+  grabOffX=cellOriginX-fingerScreenX;
+  grabOffY=cellOriginY-fingerScreenY-lift*CELL;
 }
 
 function getSnapCell(pieceIdx,screenX,screenY){
   const p=pieces[pieceIdx];if(!p)return null;
   const rect=cv.getBoundingClientRect();
-  const{ox,oy}=getDragOrigin(p,screenX,screenY);
+  const{ox,oy}=getDragOrigin();
   const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
   const maxR=Math.max(...rows),maxC=Math.max(...cols);
-  // Snap origin to nearest grid cell
   let col=Math.round((ox-rect.left)/CELL);
   let row=Math.round((oy-rect.top)/CELL);
   col=Math.max(0,Math.min(COLS-1-maxC,col));
@@ -861,16 +871,15 @@ function getSnapCell(pieceIdx,screenX,screenY){
   return{row,col};
 }
 
-function updateGhostFromScreen(pieceIdx,sx,sy){
+function updateGhostFromScreen(pieceIdx){
   const p=pieces[pieceIdx];if(!p){ghostPos=null;return;}
   const rect=cv.getBoundingClientRect();
-  const{ox,oy}=getDragOrigin(p,sx,sy);
+  const{ox,oy}=getDragOrigin();
   const margin=CELL*0.2;
   const nearGrid=ox>=rect.left-margin&&ox<=rect.right+margin&&
                  oy>=rect.top-margin&&oy<=rect.bottom+margin;
   if(!nearGrid){ghostPos=null;return;}
-  const snap=getSnapCell(pieceIdx,sx,sy);if(!snap){ghostPos=null;return;}
-  // Only show ghost if the piece fits exactly here — no searching around
+  const snap=getSnapCell(pieceIdx,dragScreenX,dragScreenY);if(!snap){ghostPos=null;return;}
   if(canPlace(p,snap.row,snap.col)) ghostPos={...snap,pieceIdx};
   else ghostPos=null;
 }
@@ -895,38 +904,36 @@ for(let i=0;i<3;i++){
     _doUnlock();
     if(!pieces[i])return;
     haptic(6);
-    dragPieceIdx=i;isDragging=true;
-    tapSelected=i;
+    dragPieceIdx=i;isDragging=true;tapSelected=i;
     const t=e.touches[0];
     dragScreenX=t.clientX;dragScreenY=t.clientY;
-    updateGhostFromScreen(i,t.clientX,t.clientY);
+    recordGrabOffset(pieces[i],t.clientX,t.clientY,$('pc-'+i));
+    updateGhostFromScreen(i);
     renderPieceTray();
   },{passive:false});
-  // Desktop: mousedown to start drag
   slot.addEventListener('mousedown',e=>{
     _doUnlock();
     if(!pieces[i])return;
-    dragPieceIdx=i;isDragging=true;
-    tapSelected=i;
+    dragPieceIdx=i;isDragging=true;tapSelected=i;
     dragScreenX=e.clientX;dragScreenY=e.clientY;
-    updateGhostFromScreen(i,e.clientX,e.clientY);
+    recordGrabOffset(pieces[i],e.clientX,e.clientY,$('pc-'+i));
+    updateGhostFromScreen(i);
     renderPieceTray();
   });
 }
 
-// Move — update ghost
 document.addEventListener('touchmove',e=>{
   if(!isDragging||dragPieceIdx<0)return;
-  e.preventDefault(); // prevent scroll interfering with drag
+  e.preventDefault();
   const t=e.touches[0];
   dragScreenX=t.clientX;dragScreenY=t.clientY;
-  updateGhostFromScreen(dragPieceIdx,t.clientX,t.clientY);
+  updateGhostFromScreen(dragPieceIdx);
 },{passive:false});
 
 document.addEventListener('mousemove',e=>{
   if(!isDragging||dragPieceIdx<0)return;
   dragScreenX=e.clientX;dragScreenY=e.clientY;
-  updateGhostFromScreen(dragPieceIdx,e.clientX,e.clientY);
+  updateGhostFromScreen(dragPieceIdx);
 });
 
 // Release — place at ghost position

@@ -503,7 +503,7 @@ const PIECES=[
 ];
 
 // ── GRID ────────────────────────────────────────
-const COLS=10,ROWS=10;
+const COLS=8,ROWS=8;
 let grid=[]; // grid[row][col] = null | {color}
 let pieces=[null,null,null]; // 3 tray pieces, each {cells, color, name}
 
@@ -774,15 +774,10 @@ function drawDragLayer(){
   dc.width=dc.width; // fast clear
   if(!isDragging||dragPieceIdx<0||!pieces[dragPieceIdx])return;
   const p=pieces[dragPieceIdx];
-  const isMob=('ontouchstart' in window);
-  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
-  const maxR=Math.max(...rows),maxC=Math.max(...cols);
-  const offY=isMob?-(CELL*(maxR+1)*0.5+CELL*1.1):-(CELL*(maxR+1)*0.5);
+  const{ox,oy}=getDragOrigin(p,dragScreenX,dragScreenY);
   dx.save();dx.globalAlpha=0.92;
   for(const[dr,dc2]of p.cells){
-    const px=dragScreenX+(dc2-maxC/2)*CELL;
-    const py=dragScreenY+(dr-maxR/2)*CELL+offY;
-    drawBlock(dx,px,py,CELL,p.color,1);
+    drawBlock(dx,ox+dc2*CELL,oy+dr*CELL,CELL,p.color,1);
   }
   dx.restore();
 }
@@ -839,47 +834,45 @@ let dragScreenX=0,dragScreenY=0;
 let ghostPos=null;
 let tapSelected=-1; // unused for placement, kept for tray highlight
 
+// Single source of truth: where does cell [0,0] of the piece appear on screen?
+// Used by BOTH drawDragLayer and getSnapCell so they're always in sync.
+function getDragOrigin(piece,screenX,screenY){
+  const isMob=('ontouchstart' in window);
+  const rows=piece.cells.map(([r])=>r);const cols=piece.cells.map(([,c])=>c);
+  const maxR=Math.max(...rows),maxC=Math.max(...cols);
+  const lift=isMob?2.0:0.5; // cells above finger
+  return{
+    ox:screenX-(maxC/2)*CELL,
+    oy:screenY-(maxR/2)*CELL-lift*CELL
+  };
+}
+
 function getSnapCell(pieceIdx,screenX,screenY){
   const p=pieces[pieceIdx];if(!p)return null;
   const rect=cv.getBoundingClientRect();
-  const isMob=('ontouchstart' in window);
+  const{ox,oy}=getDragOrigin(p,screenX,screenY);
   const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
   const maxR=Math.max(...rows),maxC=Math.max(...cols);
-  const offY=isMob?-(CELL*(maxR+1)*0.5+CELL*1.1):-(CELL*(maxR+1)*0.5);
-  // fx/fy are where the piece top-left would be drawn
-  const fx=screenX-rect.left;
-  const fy=screenY-rect.top+offY;
-  // Use Math.round so ghost aligns exactly with floating piece visual position
-  let row=Math.round(fy/CELL-maxR/2);
-  let col=Math.round(fx/CELL-maxC/2);
-  row=Math.max(0,Math.min(ROWS-1-maxR,row));
+  // Snap origin to nearest grid cell
+  let col=Math.round((ox-rect.left)/CELL);
+  let row=Math.round((oy-rect.top)/CELL);
   col=Math.max(0,Math.min(COLS-1-maxC,col));
+  row=Math.max(0,Math.min(ROWS-1-maxR,row));
   return{row,col};
 }
 
 function updateGhostFromScreen(pieceIdx,sx,sy){
   const p=pieces[pieceIdx];if(!p){ghostPos=null;return;}
-  // Hide ghost when finger (with piece offset) is not near the grid
   const rect=cv.getBoundingClientRect();
-  const isMob=('ontouchstart' in window);
-  const rows=p.cells.map(([r])=>r);const cols=p.cells.map(([,c])=>c);
-  const maxR=Math.max(...rows),maxC=Math.max(...cols);
-  const offY=isMob?-(CELL*(maxR+1)*0.5+CELL*1.1):-(CELL*(maxR+1)*0.5);
-  // Effective piece centre on screen
-  const pieceScreenY=sy+offY+maxR/2*CELL;
-  const pieceScreenX=sx;
-  // Only show ghost when the floating piece visually overlaps the grid
+  const{ox,oy}=getDragOrigin(p,sx,sy);
   const margin=CELL*0.2;
-  const nearGrid=pieceScreenX>=rect.left-margin&&pieceScreenX<=rect.right+margin&&
-                 pieceScreenY>=rect.top-margin&&pieceScreenY<=rect.bottom+margin;
+  const nearGrid=ox>=rect.left-margin&&ox<=rect.right+margin&&
+                 oy>=rect.top-margin&&oy<=rect.bottom+margin;
   if(!nearGrid){ghostPos=null;return;}
   const snap=getSnapCell(pieceIdx,sx,sy);if(!snap){ghostPos=null;return;}
-  if(canPlace(p,snap.row,snap.col)){ghostPos={...snap,pieceIdx};return;}
-  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
-    if(!dr&&!dc)continue;
-    if(canPlace(p,snap.row+dr,snap.col+dc)){ghostPos={row:snap.row+dr,col:snap.col+dc,pieceIdx};return;}
-  }
-  ghostPos=null;
+  // Only show ghost if the piece fits exactly here — no searching around
+  if(canPlace(p,snap.row,snap.col)) ghostPos={...snap,pieceIdx};
+  else ghostPos=null;
 }
 
 function placeFromScreen(pieceIdx){

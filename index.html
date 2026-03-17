@@ -674,12 +674,31 @@ function checkLines(){
   const pts=Math.round(toClear.size*10*Math.max(1,combo));
   score+=pts;linesCleared+=numLines;
 
-  floats.push({x:W/2,y:GOFF_Y+CELL*ROWS/2,text:'+'+pts.toLocaleString()+(combo>1?' '+combo+'×':''),life:1,vy:-1.8,big:combo>1});
+  // Visual score float — bigger and more exciting for combos/multi-line
+  const cx2=GOFF_X+COLS*CELL/2,cy2=GOFF_Y+ROWS*CELL/2;
+  const isMulti=numLines>1||combo>1;
+  floats.push({x:cx2,y:cy2,text:'+'+pts.toLocaleString(),life:1,vy:-2.2,big:isMulti,color:combo>1?'#FF8C00':numLines>1?'#00D4B4':'#FFD700',scale:isMulti?1+combo*0.15:1});
+  if(combo>1) floats.push({x:cx2,y:cy2-28,text:combo+'× COMBO',life:1,vy:-1.4,big:true,color:'#FF4560',scale:1.2});
+  if(numLines>=2) floats.push({x:cx2,y:cy2-52,text:numLines+' LINES!',life:1,vy:-1.0,big:true,color:'#00D4B4',scale:1.1});
+
   playClear(numLines);
 
   if(combo>1){
     $('combo-hud').textContent=combo+'× COMBO!';$('combo-hud').style.opacity='1';
     setTimeout(()=>$('combo-hud').style.opacity='0',1500);
+  }
+
+  // Perfect clear bonus — all cells empty
+  const totalFilled=grid.flat().filter(Boolean).length;
+  if(totalFilled===0){
+    const bonus=500;
+    score+=bonus;
+    floats.push({x:cx2,y:cy2-80,text:'✨ PERFECT CLEAR! +'+bonus,life:1.4,vy:-0.8,big:true,color:'#FFD700',scale:1.4});
+    haptic([20,20,20,20,20]);
+    // Burst from every cell
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      setTimeout(()=>spawnBurst(GOFF_X+c*CELL+CELL/2,GOFF_Y+r*CELL+CELL/2,'#FFD700',false),Math.random()*300);
+    }
   }
 
   afterPlace();updateHUD();
@@ -757,13 +776,21 @@ function drawGrid(now){
   });
   // Floats
   floats=floats.filter(f=>{
-    f.y+=f.vy;f.vy*=.95;f.life-=.022;
+    f.y+=f.vy;f.vy*=.93;f.life-=f.big?0.016:0.022;
     if(f.life<=0)return false;
-    cx.save();cx.globalAlpha=f.life*f.life;
-    cx.font=`${f.big?700:600} ${f.big?16:13}px 'JetBrains Mono',monospace`;
-    cx.fillStyle=f.big?'#FFD700':'rgba(240,237,232,.8)';
-    if(f.big){cx.shadowBlur=10;cx.shadowColor='#FFD700';}
-    cx.textAlign='center';cx.fillText(f.text,f.x,f.y);cx.shadowBlur=0;cx.restore();
+    const sc=f.scale||1;
+    const fs=Math.round((f.big?20:14)*sc);
+    cx.save();
+    cx.globalAlpha=Math.min(1,f.life)*Math.min(1,f.life);
+    cx.font=`800 ${fs}px 'Audiowide',monospace`;
+    cx.fillStyle=f.color||'#FFD700';
+    cx.shadowBlur=f.big?18:6;cx.shadowColor=f.color||'#FFD700';
+    cx.textAlign='center';
+    // Pop scale on entrance
+    const popScale=f.life>0.85?0.5+0.5*((1-f.life)/0.15):1;
+    cx.translate(f.x,f.y);cx.scale(popScale,popScale);
+    cx.fillText(f.text,0,0);
+    cx.shadowBlur=0;cx.restore();
     return true;
   });
   // Combo timeout reset
@@ -840,22 +867,17 @@ function getDragOrigin(){
   return{ox:dragScreenX+grabOffX, oy:dragScreenY+grabOffY};
 }
 
-// Call once on grab — records where finger touched relative to piece origin
-// pieceCanvasEl is the <canvas> inside the tray slot
-function recordGrabOffset(piece,fingerScreenX,fingerScreenY,pieceCanvasEl){
+// Grab offset: piece always floats above finger so finger never obscures it.
+// Ignore where in the tray the user touched — always anchor top-left of piece
+// at a fixed lift above the finger. Block Blast style.
+function recordGrabOffset(piece,fingerScreenX,fingerScreenY){
   const isMob=('ontouchstart' in window);
-  const rect=pieceCanvasEl.getBoundingClientRect();
-  // Where is cell [0,0] of the piece inside the tray canvas?
   const rows=piece.cells.map(([r])=>r);const cols=piece.cells.map(([,c])=>c);
   const maxR=Math.max(...rows),maxC=Math.max(...cols);
-  const sz=Math.floor(Math.min(80/(maxR+1),80/(maxC+1),28));
-  // Cell [0,0] starts at padding=5 inside the tray canvas
-  const cellOriginX=rect.left+5;
-  const cellOriginY=rect.top+5;
-  // Grab offset = piece origin - finger, then lift above finger on mobile
+  // Centre piece horizontally on finger, lift above vertically
   const lift=isMob?2.0:0.5;
-  grabOffX=cellOriginX-fingerScreenX;
-  grabOffY=cellOriginY-fingerScreenY-lift*CELL;
+  grabOffX=-(maxC/2)*CELL;
+  grabOffY=-(maxR/2)*CELL-lift*CELL;
 }
 
 function getSnapCell(pieceIdx,screenX,screenY){
@@ -907,7 +929,7 @@ for(let i=0;i<3;i++){
     dragPieceIdx=i;isDragging=true;tapSelected=i;
     const t=e.touches[0];
     dragScreenX=t.clientX;dragScreenY=t.clientY;
-    recordGrabOffset(pieces[i],t.clientX,t.clientY,$('pc-'+i));
+    recordGrabOffset(pieces[i],t.clientX,t.clientY);
     updateGhostFromScreen(i);
     renderPieceTray();
   },{passive:false});
@@ -916,7 +938,7 @@ for(let i=0;i<3;i++){
     if(!pieces[i])return;
     dragPieceIdx=i;isDragging=true;tapSelected=i;
     dragScreenX=e.clientX;dragScreenY=e.clientY;
-    recordGrabOffset(pieces[i],e.clientX,e.clientY,$('pc-'+i));
+    recordGrabOffset(pieces[i],e.clientX,e.clientY);
     updateGhostFromScreen(i);
     renderPieceTray();
   });

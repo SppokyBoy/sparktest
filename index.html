@@ -428,17 +428,34 @@ const $=id=>document.getElementById(id);
 let W=window.innerWidth,H=window.innerHeight;
 
 // ── AUDIO ───────────────────────────────────────
+// ── AUDIO — iOS PWA compatible ──────────────────
 let _ac=null,muted=false,_audioReady=false;
 function _initAC(){if(_ac)return _ac;try{_ac=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}return _ac;}
-function _doUnlock(){if(_audioReady)return;const ctx=_initAC();if(!ctx)return;try{const b=ctx.createBuffer(1,1,ctx.sampleRate);b.getChannelData(0)[0]=0.001;const s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0);ctx.resume().then(()=>{_audioReady=true;}).catch(()=>{});_audioReady=true;}catch(e){}}
+function _doUnlock(){
+  const ctx=_initAC();if(!ctx)return;
+  // iOS requires resume() called synchronously inside user gesture
+  if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+  // Play silent buffer — required for iOS to fully activate context
+  try{const b=ctx.createBuffer(1,1,ctx.sampleRate);b.getChannelData(0)[0]=0.001;const s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0);}catch(e){}
+  _audioReady=true;
+}
+// Haptics — Android Chrome only; iOS PWA does not support navigator.vibrate
 function haptic(ms){try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}}
 function toggleMute(){haptic(6);muted=!muted;$('mute-btn').textContent=muted?'🔇':'🔊';try{localStorage.setItem('sg_mute',muted?'1':'0');}catch(_){}}
-function _acNow(){return _ac&&_ac.state==='running'?_ac:null;}
-function playTone(freq,type,dur,vol){if(muted)return;const ctx=_acNow();if(!ctx)return;try{const osc=ctx.createOscillator(),g=ctx.createGain();osc.type=type;osc.frequency.value=freq;osc.frequency.exponentialRampToValueAtTime(freq*.6,ctx.currentTime+dur);g.gain.setValueAtTime(vol,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);osc.connect(g);g.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+dur+.02);}catch(e){}}
-function playClear(n){if(muted)return;const notes=[261,330,392,523];for(let i=0;i<Math.min(n,4);i++)setTimeout(()=>playTone(notes[i],i<2?'sine':'triangle',.18,.15),i*80);}
+function _acNow(){
+  if(!_ac||muted)return null;
+  // Re-resume if iOS suspended it (e.g. after tab switch or lock screen)
+  if(_ac.state==='suspended')_ac.resume().catch(()=>{});
+  return _ac.state==='running'?_ac:null;
+}
+function playTone(freq,type,dur,vol){const ctx=_acNow();if(!ctx)return;try{const osc=ctx.createOscillator(),g=ctx.createGain();osc.type=type;osc.frequency.value=freq;osc.frequency.exponentialRampToValueAtTime(freq*.6,ctx.currentTime+dur);g.gain.setValueAtTime(vol,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);osc.connect(g);g.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+dur+.02);}catch(e){}}
+function playClear(n){const notes=[261,330,392,523];for(let i=0;i<Math.min(n,4);i++)setTimeout(()=>playTone(notes[i],i<2?'sine':'triangle',.18,.15),i*80);}
 function playSurge(){playTone(880,'sine',.08,.2);setTimeout(()=>playTone(1100,'triangle',.15,.18),60);}
 function playPlace(){playTone(220,'sine',.06,.08);}
-function playGameOver(){if(muted)return;const ctx=_acNow();if(!ctx)return;try{[200,160,120].forEach((f,i)=>setTimeout(()=>playTone(f,'sawtooth',.2,.12),i*120));}catch(e){}}
+function playGameOver(){[200,160,120].forEach((f,i)=>setTimeout(()=>playTone(f,'sawtooth',.2,.12),i*120));}
+// Re-unlock on page show (iOS kills AudioContext on background)
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&_ac&&_ac.state==='suspended')_ac.resume().catch(()=>{});});
+window.addEventListener('pageshow',()=>{if(_ac&&_ac.state==='suspended')_ac.resume().catch(()=>{});});
 
 // ── TOAST ───────────────────────────────────────
 let _toastT=null;

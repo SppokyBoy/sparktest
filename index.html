@@ -543,16 +543,42 @@ const MISSION_POOL=[
 
 // ── ACHIEVEMENTS ────────────────────────────────
 const ACHIEVEMENTS=[
-  {id:'first',   name:'First Drop',   icon:'✨',desc:'Place your first piece',         check:g=>g.totalRounds>=1,   sparks:25},
-  {id:'line10',  name:'Line Master',  icon:'📏',desc:'Clear 10 lines in one game',     check:g=>g.bestLines>=10,    sparks:150},
-  {id:'surges',  name:'Surge God',    icon:'⚡',desc:'Hit 10 surges in one game',      check:g=>g.bestSurges>=10,   sparks:200},
-  {id:'chain6',  name:'Chain King',   icon:'⛓️',desc:'6-cell chain detonation',        check:g=>g.bestChain>=6,     sparks:150},
-  {id:'tenk',    name:'Ten Thousand', icon:'💎',desc:'Score 10,000 in one game',       check:g=>g.bestScore>=10000, sparks:200},
-  {id:'week7',   name:'Week Warrior', icon:'🔥',desc:'7-day login streak',             check:g=>g.streak>=7,        sparks:175},
-  {id:'combo5',  name:'Combo Master', icon:'🎯',desc:'Hit a 5× combo',                check:g=>g.bestCombo>=5,     sparks:150},
-  {id:'lv10',    name:'Rising Star',  icon:'⬆️',desc:'Reach Level 10',                check:g=>g.level>=10,        sparks:100},
-  {id:'month',   name:'Dedicated',    icon:'🏆',desc:'30-day login streak',            check:g=>g.streak>=30,       sparks:400},
-  {id:'surgemax',name:'Perfect Storm',icon:'🌟',desc:'3 perfect surges in a row',      check:g=>g.perfectSurgeRow>=3,sparks:300},
+  // Beginner
+  {id:'first',     name:'First Drop',     icon:'✨',desc:'Place your first piece',              check:g=>g.totalRounds>=1,        sparks:20},
+  {id:'first_clear',name:'Line Clearer',  icon:'📏',desc:'Clear your first line',               check:g=>g.bestLines>=1,          sparks:30},
+  {id:'games5',    name:'Getting Warmed Up',icon:'🎮',desc:'Play 5 games',                      check:g=>g.totalRounds>=5,        sparks:40},
+  // Score milestones
+  {id:'score1k',   name:'Four Digits',    icon:'💯',desc:'Score 1,000 in one game',             check:g=>g.bestScore>=1000,       sparks:60},
+  {id:'score5k',   name:'High Roller',    icon:'💰',desc:'Score 5,000 in one game',             check:g=>g.bestScore>=5000,       sparks:120},
+  {id:'score10k',  name:'Ten Thousand',   icon:'💎',desc:'Score 10,000 in one game',            check:g=>g.bestScore>=10000,      sparks:200},
+  {id:'score25k',  name:'Score Legend',   icon:'👑',desc:'Score 25,000 in one game',            check:g=>g.bestScore>=25000,      sparks:350},
+  {id:'score50k',  name:'Untouchable',    icon:'🌟',desc:'Score 50,000 in one game',            check:g=>g.bestScore>=50000,      sparks:600},
+  // Lines & clears
+  {id:'lines10',   name:'Line Master',    icon:'📐',desc:'Clear 10 lines in one game',          check:g=>g.bestLines>=10,         sparks:100},
+  {id:'lines25',   name:'Board Sweeper',  icon:'🧹',desc:'Clear 25 lines in one game',          check:g=>g.bestLines>=25,         sparks:200},
+  {id:'multiline', name:'Double Trouble', icon:'⚡',desc:'Clear 2 lines at once',               check:g=>g.bestMultiLine>=2,      sparks:80},
+  {id:'quad',      name:'Quad Blast',     icon:'💥',desc:'Clear 4 lines in a single placement', check:g=>g.bestMultiLine>=4,      sparks:250},
+  // Combos
+  {id:'combo3',    name:'Combo Starter',  icon:'🎯',desc:'Hit a 3× combo',                     check:g=>g.bestCombo>=3,          sparks:75},
+  {id:'combo5',    name:'Combo Master',   icon:'🔥',desc:'Hit a 5× combo',                     check:g=>g.bestCombo>=5,          sparks:150},
+  {id:'combo10',   name:'Combo God',      icon:'🌊',desc:'Hit a 10× combo',                    check:g=>g.bestCombo>=10,         sparks:350},
+  // Blitz mode
+  {id:'blitz_first',name:'Speed Demon',   icon:'⚡',desc:'Complete a Blitz game',               check:g=>g.blitzGames>=1,         sparks:50},
+  {id:'blitz_1k',  name:'Blitz Ace',      icon:'⚡',desc:'Score 1,000 in Blitz mode',           check:g=>g.bestBlitz>=1000,       sparks:150},
+  {id:'blitz_5k',  name:'Blitz Legend',   icon:'🏎️',desc:'Score 5,000 in Blitz mode',           check:g=>g.bestBlitz>=5000,       sparks:300},
+  // Perfect clears
+  {id:'perfect1',  name:'Clean Sweep',    icon:'✨',desc:'Perfect clear the board',              check:g=>g.perfectClears>=1,      sparks:200},
+  {id:'perfect3',  name:'Perfect Machine',icon:'🌟',desc:'Perfect clear 3 times',               check:g=>g.perfectClears>=3,      sparks:400},
+  // Themes & progression
+  {id:'theme1',    name:'Style Points',   icon:'🎨',desc:'Equip a non-default theme',           check:g=>g.themesEquipped>=1,     sparks:50},
+  {id:'lv5',       name:'Rising Star',    icon:'⬆️',desc:'Reach Level 5',                       check:g=>g.level>=5,              sparks:80},
+  {id:'lv10',      name:'Veteran',        icon:'🏅',desc:'Reach Level 10',                      check:g=>g.level>=10,             sparks:150},
+  // Streaks
+  {id:'week7',     name:'Week Warrior',   icon:'🔥',desc:'7-day login streak',                  check:g=>g.streak>=7,             sparks:175},
+  {id:'month',     name:'Dedicated',      icon:'🏆',desc:'30-day login streak',                 check:g=>g.streak>=30,            sparks:500},
+  // Grind
+  {id:'games25',   name:'Block Addict',   icon:'🎮',desc:'Play 25 games',                       check:g=>g.totalRounds>=25,       sparks:100},
+  {id:'games100',  name:'SURGE Veteran',  icon:'💪',desc:'Play 100 games',                      check:g=>g.totalRounds>=100,      sparks:300},
 ];
 
 // ── STREAK MILESTONES ───────────────────────────
@@ -924,8 +950,11 @@ function checkLines(){
     }
 
     // Perfect clear bonus
+    // Track achievement stats
+    if(numLines>1) globalStats.bestMultiLine=Math.max(globalStats.bestMultiLine||0,numLines);
     const totalFilled=grid.flat().filter(Boolean).length;
     if(totalFilled===0){
+      globalStats.perfectClears=(globalStats.perfectClears||0)+1;
       score+=500;
       floats.push({x:cx2,y:cy2-88,text:'✨ PERFECT! +500',life:1.6,vy:-0.7,big:true,color:'#FFD700',scale:1.5});
       haptic([20,20,20,20,20]);
@@ -1380,6 +1409,7 @@ function endGame(){
   const gs=globalStats;
   if(score>gs.bestScore)gs.bestScore=score;
   if(blitzMode&&score>gs.bestBlitz)gs.bestBlitz=score;
+  if(blitzMode)gs.blitzGames=(gs.blitzGames||0)+1;
   if(linesCleared>gs.bestLines)gs.bestLines=linesCleared;
   if(bestCombo>gs.bestCombo)gs.bestCombo=bestCombo;
   gs.totalRounds++;gs.streak=pStreak;gs.level=pLevel;
@@ -1408,7 +1438,7 @@ let longestChain=0; // track for missions
 let pXP=0,pLevel=1,pStreak=1,pBest=0,sparks=0,crystals=0;
 let unlockedAchievements=new Set(),claimedMissions=new Set(),ownedItems=new Set();
 let xpBoostRounds=0,streakClaimedDay=0;
-let globalStats={totalRounds:0,bestScore:0,bestLines:0,bestSurges:0,bestCombo:0,bestChain:0,bestBlitz:0,streak:1,level:1,perfectSurgeRow:0};
+let globalStats={totalRounds:0,bestScore:0,bestLines:0,bestCombo:0,bestMultiLine:0,bestBlitz:0,bestChain:0,perfectClears:0,blitzGames:0,themesEquipped:0,streak:1,level:1};
 
 const EPOCH=new Date('2024-01-01').getTime();
 function todayKey(){const d=new Date();return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate();}
@@ -1747,7 +1777,7 @@ function buildThemesTab(){
     btn.style.cssText=`padding:7px 12px;border-radius:10px;font-size:10px;font-weight:700;border:none;cursor:pointer;flex-shrink:0;transition:all .2s`;
     if(active){btn.textContent='Active';btn.style.cssText+=';background:rgba(255,140,0,.15);color:var(--amber)';}
     else if(unlocked){btn.textContent='Equip';btn.style.cssText+=';background:linear-gradient(135deg,var(--amber),var(--coral));color:#fff';
-      btn.onclick=()=>{activeThemeId=t.id;try{localStorage.setItem('sg_theme',t.id);}catch(_){}initBgParticles();buildThemesTab();toast(t.emoji,'Theme equipped: '+t.name,'');};
+      btn.onclick=()=>{activeThemeId=t.id;try{localStorage.setItem('sg_theme',t.id);}catch(_){}initBgParticles();if(t.id!=='classic')globalStats.themesEquipped=Math.max(globalStats.themesEquipped||0,1);buildThemesTab();toast(t.emoji,'Theme equipped: '+t.name,'');};
     } else if(t.cost>0){btn.textContent='⚡ '+t.cost;btn.style.cssText+=';background:var(--bg3);color:var(--t2);border:1px solid var(--b2)';
       btn.disabled=sparks<t.cost;btn.style.opacity=sparks<t.cost?'.45':'1';
       btn.onclick=()=>{if(sparks<t.cost){toast('❌','Need ⚡ '+t.cost);return;}sparks-=t.cost;try{localStorage.setItem('sg_sparks',sparks);}catch(_){}ownedItems.add('buy_'+t.id);try{localStorage.setItem('sg_owned',JSON.stringify([...ownedItems]));}catch(_){}activeThemeId=t.id;try{localStorage.setItem('sg_theme',t.id);}catch(_){}initBgParticles();updateHUD();buildThemesTab();toast(t.emoji,'Theme unlocked: '+t.name,'');};
